@@ -22,6 +22,50 @@ export const playBidSound = () => {
     osc.stop(audioCtx.currentTime + 0.2);
 };
 
+const TEAM_AUDIO_MAP = {
+    'mumbai indians': 'Sold to Mumbai India.mp3',
+    'chennai super kings': 'Sold to Chennai Supe.mp3',
+    'royal challengers bengaluru': 'Sold to Royal Challe.mp3',
+    'kolkata knight riders': 'Sold to Kolkatha Kni.mp3',
+    'delhi capitals': 'Sold to Delhi capita.mp3',
+    'punjab kings': 'Sold to Punjab kings.mp3',
+    'rajasthan royals': 'Sold to rajasthan ro.mp3',
+    'sunrisers hyderabad': 'Sold to Sunrises Hyd.mp3',
+    'lucknow super giants': 'Sold to Lucknow Supe.mp3',
+    'gujarat titans': 'Sold to Gujarat tita.mp3',
+    'deccan chargers': 'Sold to deccan charg.mp3',
+    'kochi tuskers kerala': 'Sold to kochi tusker.mp3',
+    'pune warriors india': 'Sold to pune warrior.mp3',
+    'rising pune supergiant': 'Sold to rising pune .mp3',
+    'gujarat lions': 'Sold to gujarat lion.mp3'
+};
+
+export const playCustomSlam = (type, teamName) => {
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+
+    let filename = '';
+
+    if (type === 'UNSOLD') {
+        filename = 'Unsold.mp3';
+    } else if (type === 'SOLD' && teamName) {
+        const key = teamName.toLowerCase().trim();
+        filename = TEAM_AUDIO_MAP[key];
+    } else {
+        return playHammerSlam();
+    }
+
+    if (filename) {
+        // Encode URI to handle spaces in filenames
+        const audio = new Audio(`/sounds/${encodeURIComponent(filename)}`);
+        audio.play().catch(e => {
+            console.warn(`Could not play custom sound /sounds/${filename}, falling back to synth.`);
+            playHammerSlam();
+        });
+    } else {
+        playHammerSlam();
+    }
+};
+
 export const playHammerSlam = () => {
     if (audioCtx.state === 'suspended') audioCtx.resume();
 

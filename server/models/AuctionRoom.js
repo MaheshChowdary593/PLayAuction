@@ -1,0 +1,30 @@
+const mongoose = require('mongoose');
+
+const auctionRoomSchema = new mongoose.Schema({
+    roomId: { type: String, required: true, unique: true },
+    hostSocketId: { type: String }, // For legacy engine reference
+    status: { type: String, enum: ["Lobby", "Auctioning", "Finished"], default: "Lobby" },
+    purseLimit: { type: Number, default: 12000 },
+
+    // Embedded array of franchises inside this specific room
+    franchisesInRoom: [{
+        franchiseId: { type: mongoose.Schema.Types.ObjectId, ref: 'Franchise' },
+        teamName: { type: String },
+        teamThemeColor: { type: String },
+        ownerSocketId: { type: String },
+        ownerName: { type: String },
+        currentPurse: { type: Number, default: 12000 },
+        rtmUsed: { type: Boolean, default: false }
+    }],
+
+    currentPlayerIndex: { type: Number, default: 0 },
+    unsoldPlayers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Player' }],
+
+    // Core bidding state
+    currentBidAmount: { type: Number, default: 0 },
+    highestBidderSocketId: { type: String, default: null },
+    highestBidderTeamId: { type: mongoose.Schema.Types.ObjectId, ref: 'Franchise', default: null },
+
+}, { timestamps: true });
+
+module.exports = mongoose.model('AuctionRoom', auctionRoomSchema);

@@ -1,12 +1,12 @@
 import React, { useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import confetti from 'canvas-confetti';
-import { playHammerSlam } from '../utils/soundEngine';
+import { playCustomSlam } from '../utils/soundEngine';
 
-const GavelSlam = ({ type, teamName, teamColor, amount, playerName }) => {
+const GavelSlam = ({ type, teamName, teamColor, amount, playerName, ownerName }) => {
 
     useEffect(() => {
-        playHammerSlam();
+        playCustomSlam(type, teamName);
 
         if (type === 'SOLD') {
             // Trigger confetti after the slam delay
@@ -114,8 +114,15 @@ const GavelSlam = ({ type, teamName, teamColor, amount, playerName }) => {
                                     initial={{ opacity: 0 }}
                                     animate={{ opacity: 1 }}
                                     transition={{ delay: 0.5 }}
-                                    className="text-5xl font-black mb-8 drop-shadow-[0_0_20px_rgba(255,255,255,0.6)] uppercase tracking-tight" style={{ color: teamColor }}>
-                                    {teamName}
+                                    className="text-5xl font-black drop-shadow-[0_0_20px_rgba(255,255,255,0.6)] uppercase tracking-tight flex flex-col items-center gap-1 mb-8"
+                                    style={{ color: teamColor }}
+                                >
+                                    <span>{teamName}</span>
+                                    {ownerName && (
+                                        <span className="text-xl font-bold tracking-[0.3em] opacity-90 text-white drop-shadow-md">
+                                            {ownerName}
+                                        </span>
+                                    )}
                                 </motion.div>
                                 <motion.div
                                     initial={{ opacity: 0, y: 20 }}
@@ -159,7 +166,5 @@ const GavelSlam = ({ type, teamName, teamColor, amount, playerName }) => {
         </motion.div>
     );
 };
-
-const AnimatePresence = motion.AnimatePresence;
 
 export default GavelSlam;
