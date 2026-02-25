@@ -1,0 +1,696 @@
+[
+    {
+        "name": "Virat Kohli",
+        "role": "Batsman",
+        "nationality": "India",
+        "basePrice": 200,
+        "photoUrl": "https://img1.hscicdn.com/image/upload/f_auto,t_ds_square_w_320,q_50/lsci/db/PICTURES/CMS/316600/316605.png",
+        "stats": {
+            "matches": 252,
+            "runs": 8004,
+            "average": 38.67,
+            "strikeRate": 131.97,
+            "fifties": 55,
+            "hundreds": 8,
+            "iplSeasonsActive": 17
+        },
+        "form": {
+            "lastMatches": [
+                "Excellent",
+                "Excellent",
+                "Decent",
+                "Excellent",
+                "Decent"
+            ],
+            "score": 9.5,
+            "trend": "Up"
+        }
+    },
+    {
+        "name": "Rohit Sharma",
+        "role": "Batsman",
+        "nationality": "India",
+        "basePrice": 200,
+        "photoUrl": "https://img1.hscicdn.com/image/upload/f_auto,t_ds_square_w_320,q_50/lsci/db/PICTURES/CMS/316600/316611.png",
+        "stats": {
+            "matches": 257,
+            "runs": 6628,
+            "average": 29.72,
+            "strikeRate": 131.14,
+            "fifties": 43,
+            "hundreds": 2,
+            "iplSeasonsActive": 17
+        },
+        "form": {
+            "lastMatches": [
+                "Decent",
+                "Poor",
+                "Excellent",
+                "Decent",
+                "Excellent"
+            ],
+            "score": 8.2,
+            "trend": "Consistent"
+        }
+    },
+    {
+        "name": "MS Dhoni",
+        "role": "Wicket-Keeper",
+        "nationality": "India",
+        "basePrice": 200,
+        "photoUrl": "https://img1.hscicdn.com/image/upload/f_auto,t_ds_square_w_320,q_50/lsci/db/PICTURES/CMS/316600/316604.png",
+        "stats": {
+            "matches": 264,
+            "runs": 5243,
+            "average": 39.13,
+            "strikeRate": 137.54,
+            "fifties": 24,
+            "hundreds": 0,
+            "iplSeasonsActive": 17
+        },
+        "form": {
+            "lastMatches": [
+                "Excellent",
+                "Excellent",
+                "Excellent",
+                "Decent",
+                "Poor"
+            ],
+            "score": 8.8,
+            "trend": "Up"
+        }
+    },
+    {
+        "name": "Rishabh Pant",
+        "role": "Wicket-Keeper",
+        "nationality": "India",
+        "basePrice": 200,
+        "photoUrl": "https://img1.hscicdn.com/image/upload/f_auto,t_ds_square_w_320,q_50/lsci/db/PICTURES/CMS/316500/316523.png",
+        "stats": {
+            "matches": 111,
+            "runs": 3284,
+            "average": 35.31,
+            "strikeRate": 148.9,
+            "fifties": 18,
+            "hundreds": 1,
+            "iplSeasonsActive": 8
+        },
+        "form": {
+            "lastMatches": [
+                "Excellent",
+                "Excellent",
+                "Decent",
+                "Excellent",
+                "Decent"
+            ],
+            "score": 9.2,
+            "trend": "Up"
+        }
+    },
+    {
+        "name": "KL Rahul",
+        "role": "Wicket-Keeper",
+        "nationality": "India",
+        "basePrice": 200,
+        "photoUrl": "https://img1.hscicdn.com/image/upload/f_auto,t_ds_square_w_320,q_50/lsci/db/PICTURES/CMS/316500/316518.png",
+        "stats": {
+            "matches": 132,
+            "runs": 4683,
+            "average": 45.5,
+            "strikeRate": 134.6,
+            "fifties": 37,
+            "hundreds": 4,
+            "iplSeasonsActive": 12
+        },
+        "form": {
+            "lastMatches": [
+                "Decent",
+                "Excellent",
+                "Decent",
+                "Decent",
+                "Excellent"
+            ],
+            "score": 8.5,
+            "trend": "Consistent"
+        }
+    },
+    {
+        "name": "Shreyas Iyer",
+        "role": "Batsman",
+        "nationality": "India",
+        "basePrice": 200,
+        "photoUrl": "https://img1.hscicdn.com/image/upload/f_auto,t_ds_square_w_320,q_50/lsci/db/PICTURES/CMS/316500/316514.png",
+        "stats": {
+            "matches": 116,
+            "runs": 3127,
+            "average": 32.2,
+            "strikeRate": 125.7,
+            "fifties": 21,
+            "hundreds": 0,
+            "iplSeasonsActive": 10
+        },
+        "form": {
+            "lastMatches": [
+                "Excellent",
+                "Decent",
+                "Excellent",
+                "Excellent",
+                "Poor"
+            ],
+            "score": 8.9,
+            "trend": "Up"
+        }
+    },
+    {
+        "name": "Jos Buttler",
+        "role": "Wicket-Keeper",
+        "nationality": "England",
+        "basePrice": 200,
+        "photoUrl": "https://img1.hscicdn.com/image/upload/f_auto,t_ds_square_w_320,q_50/lsci/db/PICTURES/CMS/304200/304209.png",
+        "stats": {
+            "matches": 107,
+            "runs": 3582,
+            "average": 38.1,
+            "strikeRate": 147.5,
+            "fifties": 19,
+            "hundreds": 7,
+            "iplSeasonsActive": 9
+        },
+        "form": {
+            "lastMatches": [
+                "Excellent",
+                "Excellent",
+                "Excellent",
+                "Poor",
+                "Decent"
+            ],
+            "score": 9.3,
+            "trend": "Up"
+        }
+    },
+    {
+        "name": "Jasprit Bumrah",
+        "role": "Bowler",
+        "nationality": "India",
+        "basePrice": 200,
+        "photoUrl": "https://img1.hscicdn.com/image/upload/f_auto,t_ds_square_w_320,q_50/lsci/db/PICTURES/CMS/316600/316603.png",
+        "stats": {
+            "matches": 133,
+            "wickets": 165,
+            "economy": 7.30,
+            "bowlingAverage": 22.51,
+            "bestFigures": "5/10",
+            "iplSeasonsActive": 11
+        },
+        "form": {
+            "lastMatches": [
+                "Excellent",
+                "Excellent",
+                "Excellent",
+                "Excellent",
+                "Excellent"
+            ],
+            "score": 9.9,
+            "trend": "Up"
+        }
+    },
+    {
+        "name": "Mitchell Starc",
+        "role": "Bowler",
+        "nationality": "Australia",
+        "basePrice": 200,
+        "photoUrl": "https://img1.hscicdn.com/image/upload/f_auto,t_ds_square_w_320,q_50/lsci/db/PICTURES/CMS/319900/319969.png",
+        "stats": {
+            "matches": 41,
+            "wickets": 51,
+            "economy": 8.21,
+            "bowlingAverage": 24.3,
+            "bestFigures": "4/15",
+            "iplSeasonsActive": 4
+        },
+        "form": {
+            "lastMatches": [
+                "Excellent",
+                "Excellent",
+                "Poor",
+                "Decent",
+                "Excellent"
+            ],
+            "score": 8.8,
+            "trend": "Up"
+        }
+    },
+    {
+        "name": "Kagiso Rabada",
+        "role": "Bowler",
+        "nationality": "South Africa",
+        "basePrice": 200,
+        "photoUrl": "https://img1.hscicdn.com/image/upload/f_auto,t_ds_square_w_320,q_50/lsci/db/PICTURES/CMS/316500/316584.png",
+        "stats": {
+            "matches": 80,
+            "wickets": 117,
+            "economy": 8.1,
+            "bowlingAverage": 20.8,
+            "bestFigures": "4/21",
+            "iplSeasonsActive": 8
+        },
+        "form": {
+            "lastMatches": [
+                "Excellent",
+                "Decent",
+                "Excellent",
+                "Excellent",
+                "Decent"
+            ],
+            "score": 9.1,
+            "trend": "Up"
+        }
+    },
+    {
+        "name": "Arshdeep Singh",
+        "role": "Bowler",
+        "nationality": "India",
+        "basePrice": 200,
+        "photoUrl": "https://img1.hscicdn.com/image/upload/f_auto,t_ds_square_w_320,q_50/lsci/db/PICTURES/CMS/316500/316515.png",
+        "stats": {
+            "matches": 65,
+            "wickets": 76,
+            "economy": 8.7,
+            "bowlingAverage": 25.1,
+            "bestFigures": "5/32",
+            "iplSeasonsActive": 6
+        },
+        "form": {
+            "lastMatches": [
+                "Excellent",
+                "Excellent",
+                "Decent",
+                "Excellent",
+                "Excellent"
+            ],
+            "score": 9.4,
+            "trend": "Up"
+        }
+    },
+    {
+        "name": "Yuzvendra Chahal",
+        "role": "Bowler",
+        "nationality": "India",
+        "basePrice": 200,
+        "photoUrl": "https://img1.hscicdn.com/image/upload/f_auto,t_ds_square_w_320,q_50/lsci/db/PICTURES/CMS/316600/316616.png",
+        "stats": {
+            "matches": 160,
+            "wickets": 205,
+            "economy": 7.8,
+            "bowlingAverage": 22.4,
+            "bestFigures": "5/40",
+            "iplSeasonsActive": 12
+        },
+        "form": {
+            "lastMatches": [
+                "Excellent",
+                "Decent",
+                "Excellent",
+                "Poor",
+                "Excellent"
+            ],
+            "score": 8.7,
+            "trend": "Consistent"
+        }
+    },
+    {
+        "name": "Liam Livingstone",
+        "role": "All-Rounder",
+        "nationality": "England",
+        "basePrice": 200,
+        "photoUrl": "https://img1.hscicdn.com/image/upload/f_auto,t_ds_square_w_320,q_50/lsci/db/PICTURES/CMS/304200/304203.png",
+        "stats": {
+            "matches": 39,
+            "runs": 934,
+            "average": 28.3,
+            "strikeRate": 162.5,
+            "wickets": 11,
+            "economy": 8.8,
+            "iplSeasonsActive": 4
+        },
+        "form": {
+            "lastMatches": [
+                "Excellent",
+                "Excellent",
+                "Decent",
+                "Excellent",
+                "Excellent"
+            ],
+            "score": 9.4,
+            "trend": "Up"
+        }
+    },
+    {
+        "name": "Hardik Pandya",
+        "role": "All-Rounder",
+        "nationality": "India",
+        "basePrice": 200,
+        "photoUrl": "https://img1.hscicdn.com/image/upload/f_auto,t_ds_square_w_320,q_50/lsci/db/PICTURES/CMS/316600/316613.png",
+        "stats": {
+            "matches": 137,
+            "runs": 2525,
+            "average": 28.69,
+            "strikeRate": 145.86,
+            "wickets": 64,
+            "economy": 8.85,
+            "iplSeasonsActive": 10
+        },
+        "form": {
+            "lastMatches": [
+                "Decent",
+                "Poor",
+                "Excellent",
+                "Poor",
+                "Excellent"
+            ],
+            "score": 7.8,
+            "trend": "Consistent"
+        }
+    },
+    {
+        "name": "Rashid Khan",
+        "role": "All-Rounder",
+        "nationality": "Afghanistan",
+        "basePrice": 200,
+        "photoUrl": "https://img1.hscicdn.com/image/upload/f_auto,t_ds_square_w_320,q_50/lsci/db/PICTURES/CMS/320400/320466.png",
+        "stats": {
+            "matches": 121,
+            "wickets": 149,
+            "economy": 6.82,
+            "bowlingAverage": 21.82,
+            "runs": 543,
+            "strikeRate": 163.7,
+            "iplSeasonsActive": 8
+        },
+        "form": {
+            "lastMatches": [
+                "Excellent",
+                "Excellent",
+                "Excellent",
+                "Decent",
+                "Excellent"
+            ],
+            "score": 9.8,
+            "trend": "Up"
+        }
+    },
+    {
+        "name": "Travis Head",
+        "role": "Batsman",
+        "nationality": "Australia",
+        "basePrice": 200,
+        "photoUrl": "https://img1.hscicdn.com/image/upload/f_auto,t_ds_square_w_320,q_50/lsci/db/PICTURES/CMS/319900/319946.png",
+        "stats": {
+            "matches": 25,
+            "runs": 772,
+            "average": 35.09,
+            "strikeRate": 174.66,
+            "fifties": 5,
+            "hundreds": 1,
+            "iplSeasonsActive": 3
+        },
+        "form": {
+            "lastMatches": [
+                "Excellent",
+                "Excellent",
+                "Excellent",
+                "Excellent",
+                "Excellent"
+            ],
+            "score": 9.9,
+            "trend": "Up"
+        }
+    },
+    {
+        "name": "Suryakumar Yadav",
+        "role": "Batsman",
+        "nationality": "India",
+        "basePrice": 200,
+        "photoUrl": "https://img1.hscicdn.com/image/upload/f_auto,t_ds_square_w_320,q_50/lsci/db/PICTURES/CMS/316600/316625.png",
+        "stats": {
+            "matches": 150,
+            "runs": 3594,
+            "average": 32.09,
+            "strikeRate": 145.33,
+            "fifties": 24,
+            "hundreds": 2,
+            "iplSeasonsActive": 11
+        },
+        "form": {
+            "lastMatches": [
+                "Excellent",
+                "Excellent",
+                "Decent",
+                "Excellent",
+                "Excellent"
+            ],
+            "score": 9.6,
+            "trend": "Up"
+        }
+    },
+    {
+        "name": "Sunil Narine",
+        "role": "All-Rounder",
+        "nationality": "West Indies",
+        "basePrice": 200,
+        "photoUrl": "https://img1.hscicdn.com/image/upload/f_auto,t_ds_square_w_320,q_50/lsci/db/PICTURES/CMS/316400/316447.png",
+        "stats": {
+            "matches": 176,
+            "runs": 1534,
+            "wickets": 180,
+            "economy": 6.74,
+            "strikeRate": 165.84,
+            "fifties": 7,
+            "hundreds": 1,
+            "iplSeasonsActive": 13
+        },
+        "form": {
+            "lastMatches": [
+                "Excellent",
+                "Excellent",
+                "Excellent",
+                "Excellent",
+                "Excellent"
+            ],
+            "score": 9.9,
+            "trend": "Up"
+        }
+    },
+    {
+        "name": "David Miller",
+        "role": "Batsman",
+        "nationality": "South Africa",
+        "basePrice": 150,
+        "photoUrl": "https://img1.hscicdn.com/image/upload/f_auto,t_ds_square_w_320,q_50/lsci/db/PICTURES/CMS/316500/316551.png",
+        "stats": {
+            "matches": 130,
+            "runs": 2922,
+            "average": 34.8,
+            "strikeRate": 139.2,
+            "fifties": 13,
+            "hundreds": 1,
+            "iplSeasonsActive": 13
+        },
+        "form": {
+            "lastMatches": [
+                "Decent",
+                "Excellent",
+                "Excellent",
+                "Poor",
+                "Decent"
+            ],
+            "score": 8.0,
+            "trend": "Consistent"
+        }
+    },
+    {
+        "name": "Jake Fraser-McGurk",
+        "role": "Batsman",
+        "nationality": "Australia",
+        "basePrice": 200,
+        "photoUrl": "https://img1.hscicdn.com/image/upload/f_auto,t_ds_square_w_320,q_50/lsci/db/PICTURES/CMS/319900/319951.png",
+        "stats": {
+            "matches": 9,
+            "runs": 330,
+            "average": 36.6,
+            "strikeRate": 234.0,
+            "fifties": 4,
+            "hundreds": 0,
+            "iplSeasonsActive": 1
+        },
+        "form": {
+            "lastMatches": [
+                "Excellent",
+                "Excellent",
+                "Excellent",
+                "Excellent",
+                "Excellent"
+            ],
+            "score": 9.7,
+            "trend": "Up"
+        }
+    },
+    {
+        "name": "Trent Boult",
+        "role": "Bowler",
+        "nationality": "New Zealand",
+        "basePrice": 200,
+        "photoUrl": "https://img1.hscicdn.com/image/upload/f_auto,t_ds_square_w_320,q_50/lsci/db/PICTURES/CMS/316500/316597.png",
+        "stats": {
+            "matches": 104,
+            "wickets": 121,
+            "economy": 8.2,
+            "bowlingAverage": 26.5,
+            "bestFigures": "4/18",
+            "iplSeasonsActive": 10
+        },
+        "form": {
+            "lastMatches": [
+                "Excellent",
+                "Decent",
+                "Excellent",
+                "Excellent",
+                "Decent"
+            ],
+            "score": 9.2,
+            "trend": "Up"
+        }
+    },
+    {
+        "name": "Faf du Plessis",
+        "role": "Batsman",
+        "nationality": "South Africa",
+        "basePrice": 200,
+        "photoUrl": "https://img1.hscicdn.com/image/upload/f_auto,t_ds_square_w_320,q_50/lsci/db/PICTURES/CMS/316500/316568.png",
+        "stats": {
+            "matches": 145,
+            "runs": 4571,
+            "average": 35.7,
+            "strikeRate": 136.4,
+            "fifties": 36,
+            "hundreds": 0,
+            "iplSeasonsActive": 13
+        },
+        "form": {
+            "lastMatches": [
+                "Excellent",
+                "Decent",
+                "Excellent",
+                "Poor",
+                "Excellent"
+            ],
+            "score": 8.5,
+            "trend": "Up"
+        }
+    },
+    {
+        "name": "Washington Sundar",
+        "role": "All-Rounder",
+        "nationality": "India",
+        "basePrice": 150,
+        "photoUrl": "https://img1.hscicdn.com/image/upload/f_auto,t_ds_square_w_320,q_50/lsci/db/PICTURES/CMS/304200/304207.png",
+        "stats": {
+            "matches": 60,
+            "runs": 378,
+            "wickets": 39,
+            "economy": 7.5,
+            "strikeRate": 115.6,
+            "iplSeasonsActive": 7
+        },
+        "form": {
+            "lastMatches": [
+                "Decent",
+                "Excellent",
+                "Decent",
+                "Decent",
+                "Poor"
+            ],
+            "score": 7.9,
+            "trend": "Consistent"
+        }
+    },
+    {
+        "name": "Pat Cummins",
+        "role": "Bowler",
+        "nationality": "Australia",
+        "basePrice": 200,
+        "photoUrl": "https://img1.hscicdn.com/image/upload/f_auto,t_ds_square_w_320,q_50/lsci/db/PICTURES/CMS/319900/319941.png",
+        "stats": {
+            "matches": 59,
+            "wickets": 65,
+            "economy": 8.5,
+            "bowlingAverage": 29.3,
+            "bestFigures": "4/34",
+            "iplSeasonsActive": 6
+        },
+        "form": {
+            "lastMatches": [
+                "Excellent",
+                "Decent",
+                "Excellent",
+                "Excellent",
+                "Decent"
+            ],
+            "score": 9.0,
+            "trend": "Up"
+        }
+    },
+    {
+        "name": "Matheesha Pathirana",
+        "role": "Bowler",
+        "nationality": "Sri Lanka",
+        "basePrice": 200,
+        "photoUrl": "https://img1.hscicdn.com/image/upload/f_auto,t_ds_square_w_320,q_50/lsci/db/PICTURES/CMS/331100/331168.png",
+        "stats": {
+            "matches": 20,
+            "wickets": 34,
+            "economy": 8.0,
+            "bowlingAverage": 17.5,
+            "bestFigures": "4/28",
+            "iplSeasonsActive": 3
+        },
+        "form": {
+            "lastMatches": [
+                "Excellent",
+                "Excellent",
+                "Poor",
+                "Excellent",
+                "Excellent"
+            ],
+            "score": 9.3,
+            "trend": "Up"
+        }
+    },
+    {
+        "name": "Quinton de Kock",
+        "role": "Wicket-Keeper",
+        "nationality": "South Africa",
+        "basePrice": 200,
+        "photoUrl": "https://img1.hscicdn.com/image/upload/f_auto,t_ds_square_w_320,q_50/lsci/db/PICTURES/CMS/316500/316556.png",
+        "stats": {
+            "matches": 107,
+            "runs": 3157,
+            "average": 31.9,
+            "strikeRate": 134.1,
+            "fifties": 22,
+            "hundreds": 2,
+            "iplSeasonsActive": 10
+        },
+        "form": {
+            "lastMatches": [
+                "Decent",
+                "Poor",
+                "Excellent",
+                "Decent",
+                "Decent"
+            ],
+            "score": 8.1,
+            "trend": "Consistent"
+        }
+    }
+]
