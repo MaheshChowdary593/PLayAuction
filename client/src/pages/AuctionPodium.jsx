@@ -321,31 +321,7 @@ const AuctionPodium = () => {
                     </div>
                 )}
 
-                {/* Paused Overlay */}
-                <AnimatePresence>
-                    {isPaused && (
-                        <motion.div
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            className="absolute inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
-                        >
-                            <div className="text-center flex flex-col items-center">
-                                <h1 className="text-7xl font-black text-white tracking-widest uppercase mb-4 animate-pulse">Paused</h1>
-                                <p className="text-yellow-500 font-bold uppercase tracking-[0.2em] mb-8">The auctioneer has suspended bidding</p>
 
-                                {myTeam && myTeam.ownerSocketId === gameState?.host && (
-                                    <button
-                                        onClick={() => socket.emit('resume_auction', { roomCode })}
-                                        className="px-8 py-4 bg-green-500 hover:bg-green-400 text-white rounded-2xl font-black uppercase tracking-widest text-sm shadow-[0_0_30px_rgba(34,197,94,0.5)] transition-all hover:scale-105"
-                                    >
-                                        ▶ Resume Bidding
-                                    </button>
-                                )}
-                            </div>
-                        </motion.div>
-                    )}
-                </AnimatePresence>
 
                 <div className="flex-1 flex items-center justify-center p-12 z-10">
                     <AnimatePresence mode='wait'>
