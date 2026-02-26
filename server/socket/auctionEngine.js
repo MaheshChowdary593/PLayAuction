@@ -99,7 +99,7 @@ const setupSocketHandlers = (io) => {
                     roomCode,
                     host: socket.id,
                     status: 'Lobby',
-                    players: shuffledPlayers,
+                    players: players,
                     currentIndex: 0,
                     teams: [], // Empty initially, host must claim team from lobby
                     availableTeams: JSON.parse(JSON.stringify(dbFranchises)), // Deep copy so teams aren't globally removed
@@ -465,7 +465,7 @@ async function processHammerDown(roomCode, io) {
         console.log(JSON.stringify(soldData, null, 2));
 
         io.to(roomCode).emit('player_sold', {
-            player: { ...player.toObject(), name: playerName },
+            player: { ...player, name: playerName },
             winningBid: state.currentBid,
             teams: state.teams
         });

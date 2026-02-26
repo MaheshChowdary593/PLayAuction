@@ -426,7 +426,7 @@ const AuctionPodium = () => {
                                         </div>
 
                                         {/* Batting Stats for Batsmen, All-rounders and WK */}
-                                        {['Batsman', 'Batsmen', 'All-Rounder', 'Allrounder', 'Wicketkeeper', 'WK', 'batter'].includes(currentPlayer.role) && (
+                                        {['batsman', 'batsmen', 'all-rounder', 'allrounder', 'wicketkeeper', 'wk', 'batter'].includes((currentPlayer.role || '').toLowerCase()) && (
                                             <>
                                                 <div className="glass-panel rounded-2xl p-4 border-white/5">
                                                     <div className="text-[9px] text-slate-500 font-black uppercase tracking-[0.15em] mb-1">Runs</div>
@@ -444,7 +444,7 @@ const AuctionPodium = () => {
                                         )}
 
                                         {/* Bowling Stats for Bowlers and All-rounders */}
-                                        {['Bowler', 'All-Rounder', 'Allrounder', 'bowler'].includes(currentPlayer.role) && (
+                                        {['bowler', 'all-rounder', 'allrounder'].includes((currentPlayer.role || '').toLowerCase()) && (
                                             <>
                                                 <div className="glass-panel rounded-2xl p-4 border-white/5">
                                                     <div className="text-[9px] text-slate-500 font-black uppercase tracking-[0.15em] mb-1">Wickets</div>
@@ -462,7 +462,7 @@ const AuctionPodium = () => {
                                         )}
 
                                         {/* WK Specific Stats */}
-                                        {['Wicketkeeper', 'WK'].includes(currentPlayer.role) && (
+                                        {['wicketkeeper', 'wk'].includes((currentPlayer.role || '').toLowerCase()) && (
                                             <>
                                                 <div className="glass-panel rounded-2xl p-4 border-white/5">
                                                     <div className="text-[9px] text-slate-500 font-black uppercase tracking-[0.15em] mb-1">Stumpings</div>
