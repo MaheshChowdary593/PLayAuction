@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { useSocket } from '../context/SocketContext';
 import { motion, AnimatePresence, useMotionValue, useSpring, useTransform } from 'framer-motion';
+import { ImAirplane } from "react-icons/im";
 import GavelSlam from '../components/GavelSlam';
 
 import { playBidSound, playWarningBeep } from '../utils/soundEngine';
@@ -16,8 +17,13 @@ const AuctionPodium = () => {
     const [currentPlayer, setCurrentPlayer] = useState(null);
     const [currentBid, setCurrentBid] = useState({ amount: 0, teamId: null, teamName: null, teamColor: null });
     const [timer, setTimer] = useState(10);
-    const [maxTimer, setMaxTimer] = useState(10);
     const [myTeam, setMyTeam] = useState(null);
+    const [soldEvent, setSoldEvent] = useState(null);
+    const [isPaused, setIsPaused] = useState(false);
+
+    const [activeTeams, setActiveTeams] = useState(gameState?.teams || []);
+    const [recentSold, setRecentSold] = useState([]); // Track last 10 sold players
+    const [allPlayersMap, setAllPlayersMap] = useState({});
 
     useEffect(() => {
         // Fetch players to create a fallback name map in case backend only sends IDs
@@ -72,7 +78,6 @@ const AuctionPodium = () => {
         socket.on('new_player', ({ player, nextPlayers, timer }) => {
             setCurrentPlayer(player);
             setTimer(timer);
-            setMaxTimer(timer); // Assume the starting timer is the maximum for this round
             setCurrentBid({ amount: 0, teamId: null, teamName: null, teamColor: null });
             setSoldEvent(null);
             setBidHistory([]);
@@ -191,8 +196,8 @@ const AuctionPodium = () => {
 
     const ringRadius = 45;
     const ringCircumference = 2 * Math.PI * ringRadius;
-    const currentMax = maxTimer || 10;
-    const timerDashoffset = ringCircumference - (timer / currentMax) * ringCircumference;
+    const maxTimer = gameState?.timerDuration || 10;
+    const timerDashoffset = ringCircumference - (timer / maxTimer) * ringCircumference;
 
     let timerColor = '#00d2ff';
     if (timer <= 5) timerColor = '#ffcc33';
@@ -266,7 +271,10 @@ const AuctionPodium = () => {
                                             }
                                             return (
                                                 <div key={idx} className="flex justify-between items-center text-[10px] font-bold bg-black/20 p-2 rounded border border-white/5">
-                                                    <span className="text-white uppercase truncate pr-2">{displayName}</span>
+                                                    <span className="text-white uppercase truncate pr-2 flex items-center gap-1.5">
+                                                        {displayName}
+                                                        {p.isOverseas && <ImAirplane className="text-blue-400 -rotate-45" size={10} title="Overseas Player" />}
+                                                    </span>
                                                     <span className="text-blue-400 shrink-0">₹{p.boughtFor}L</span>
                                                 </div>
                                             );
@@ -409,7 +417,7 @@ const AuctionPodium = () => {
                                         {/* Overseas Indicator - Top Left */}
                                         {currentPlayer.isOverseas && (
                                             <div className="absolute top-4 left-4 bg-white/10 backdrop-blur-md border border-white/20 p-2 rounded-xl shadow-2xl z-20 tooltip-trigger">
-                                                <span className="text-2xl drop-shadow-md" title="Overseas Player">✈️</span>
+                                                <ImAirplane className="text-2xl text-blue-400 drop-shadow-md -rotate-45" title="Overseas Player" />
                                             </div>
                                         )}
                                     </div>
@@ -547,7 +555,7 @@ const AuctionPodium = () => {
                                         <div className="relative w-32 h-32 flex items-center justify-center">
                                             {!soldEvent ? (
                                                 <>
-                                                    <svg className="w-full h-full transform -rotate-90 absolute">
+                                                    <svg className="w-full h-full transform -rotate-90 absolute scroll-smooth">
                                                         <circle cx="64" cy="64" r={ringRadius} fill="transparent" stroke="rgba(255,255,255,0.05)" strokeWidth="8" />
                                                         <motion.circle
                                                             cx="64" cy="64" r={ringRadius}
@@ -558,6 +566,7 @@ const AuctionPodium = () => {
                                                             strokeDasharray={ringCircumference}
                                                             animate={{ strokeDashoffset: timerDashoffset, stroke: timerColor }}
                                                             transition={{ duration: 1, ease: 'linear' }}
+                                                            className="drop-shadow-[0_0_15px_currentColor]"
                                                         />
                                                     </svg>
                                                     <motion.div
