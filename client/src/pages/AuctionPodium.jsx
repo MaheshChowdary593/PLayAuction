@@ -383,20 +383,18 @@ const AuctionPodium = () => {
                                         />
                                         {/* Seamless gradient fade into the bottom */}
                                         <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-slate-900 via-slate-900/80 to-transparent"></div>
+
+                                        {/* Overseas Indicator - Top Left */}
+                                        {currentPlayer.isOverseas && (
+                                            <div className="absolute top-4 left-4 bg-white/10 backdrop-blur-md border border-white/20 p-2 rounded-xl shadow-2xl z-20 tooltip-trigger">
+                                                <span className="text-2xl drop-shadow-md" title="Overseas Player">✈️</span>
+                                            </div>
+                                        )}
                                     </div>
 
                                     {/* Bottom 30% Information Section */}
                                     <div style={{ transform: "translateZ(80px)" }} className="relative h-[30%] w-full px-6 flex flex-col justify-end pb-6 z-10 -mt-8">
-                                        <div className="flex items-center gap-2 mb-1">
-                                            <span className="px-2 py-0.5 rounded bg-white/20 text-[10px] font-black uppercase tracking-widest backdrop-blur-md">
-                                                {currentPlayer.role}
-                                            </span>
-                                            <span className="px-2 py-0.5 rounded bg-blue-600/40 text-[10px] font-black uppercase tracking-widest backdrop-blur-md flex items-center gap-1">
-                                                {currentPlayer.isOverseas && <span>✈️</span>}
-                                                {currentPlayer.nationality}
-                                            </span>
-                                        </div>
-                                        <h1 className="text-4xl font-black tracking-tighter leading-none text-white uppercase italic drop-shadow-lg">
+                                        <h1 className="text-4xl font-black tracking-tighter leading-none text-white uppercase italic drop-shadow-lg mb-2">
                                             {(currentPlayer.player || currentPlayer.name || 'Unknown Player').split(' ').map((n, i) => (
                                                 <span key={i} className="block">{n}</span>
                                             ))}
