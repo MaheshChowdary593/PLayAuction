@@ -423,8 +423,8 @@ const AuctionPodium = () => {
                                             <div className="text-2xl font-black font-mono bg-clip-text text-transparent bg-gradient-to-r from-white to-white/70">{currentPlayer.stats?.matches || 0}</div>
                                         </div>
 
-                                        {/* Batting Stats for Batsmen, All-rounders and WK */}
-                                        {['batsman', 'batsmen', 'all-rounder', 'allrounder', 'wicketkeeper', 'wk', 'batter'].includes((currentPlayer.role || '').toLowerCase()) && (
+                                        {/* Batting Stats for Batsmen, All-rounders (excluding WK to handle their specific layout below) */}
+                                        {['batsman', 'batsmen', 'all-rounder', 'allrounder', 'batter'].includes((currentPlayer.role || '').toLowerCase()) && (
                                             <>
                                                 <div className="glass-panel rounded-2xl p-4 border-white/5">
                                                     <div className="text-[9px] text-slate-500 font-black uppercase tracking-[0.15em] mb-1">Runs</div>
@@ -459,16 +459,28 @@ const AuctionPodium = () => {
                                             </>
                                         )}
 
-                                        {/* WK Specific Stats */}
+                                        {/* WK Specific Stats (Combines Batting + Fielding) */}
                                         {['wicketkeeper', 'wk'].includes((currentPlayer.role || '').toLowerCase()) && (
                                             <>
                                                 <div className="glass-panel rounded-2xl p-4 border-white/5">
-                                                    <div className="text-[9px] text-slate-500 font-black uppercase tracking-[0.15em] mb-1">Stumpings</div>
-                                                    <div className="text-2xl font-black font-mono bg-clip-text text-transparent bg-gradient-to-r from-green-400 to-emerald-400">{currentPlayer.stats?.stumpings || 0}</div>
+                                                    <div className="text-[9px] text-slate-500 font-black uppercase tracking-[0.15em] mb-1">Runs</div>
+                                                    <div className="text-2xl font-black font-mono bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-cyan-300">{currentPlayer.stats?.runs || 0}</div>
+                                                </div>
+                                                <div className="glass-panel rounded-2xl p-4 border-white/5">
+                                                    <div className="text-[9px] text-slate-500 font-black uppercase tracking-[0.15em] mb-1">Bat Avg</div>
+                                                    <div className="text-2xl font-black font-mono bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-cyan-300">{currentPlayer.stats?.battingAvg || 0}</div>
+                                                </div>
+                                                <div className="glass-panel rounded-2xl p-4 border-white/5">
+                                                    <div className="text-[9px] text-slate-500 font-black uppercase tracking-[0.15em] mb-1">Strike Rate</div>
+                                                    <div className="text-2xl font-black font-mono bg-clip-text text-transparent bg-gradient-to-r from-yellow-400 to-orange-500">{currentPlayer.stats?.strikeRate || 0}</div>
                                                 </div>
                                                 <div className="glass-panel rounded-2xl p-4 border-white/5">
                                                     <div className="text-[9px] text-slate-500 font-black uppercase tracking-[0.15em] mb-1">Catches</div>
                                                     <div className="text-2xl font-black font-mono bg-clip-text text-transparent bg-gradient-to-r from-green-400 to-emerald-400">{currentPlayer.stats?.catches || 0}</div>
+                                                </div>
+                                                <div className="glass-panel rounded-2xl p-4 border-white/5">
+                                                    <div className="text-[9px] text-slate-500 font-black uppercase tracking-[0.15em] mb-1">Stumpings</div>
+                                                    <div className="text-2xl font-black font-mono bg-clip-text text-transparent bg-gradient-to-r from-green-400 to-emerald-400">{currentPlayer.stats?.stumpings || 0}</div>
                                                 </div>
                                             </>
                                         )}
