@@ -1,6 +1,8 @@
 const Room = require('../models/Room');
 const Player = require('../models/Player');
+const AuctionRoom = require('../models/AuctionRoom');
 const Franchise = require('../models/Franchise');
+const AuctionTransaction = require('../models/AuctionTransaction');
 const mongoose = require('mongoose');
 
 const POOLS = ['pool0', 'pool01', 'pool1', 'pool2', 'pool3', 'pool4', 'pool5'];
@@ -423,7 +425,6 @@ function tickTimer(roomCode, io) {
 async function processHammerDown(roomCode, io) {
     const state = roomStates[roomCode];
     const player = state.players[state.currentIndex];
-    const AuctionTransaction = require('../models/AuctionTransaction');
 
     const playerName = player.player || player.name || 'Unknown Player';
 
