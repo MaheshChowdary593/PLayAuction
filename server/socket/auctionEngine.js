@@ -1,7 +1,42 @@
 const Room = require('../models/Room');
 const Player = require('../models/Player');
-const AuctionRoom = require('../models/AuctionRoom');
 const Franchise = require('../models/Franchise');
+const mongoose = require('mongoose');
+
+const POOLS = ['pool0', 'pool01', 'pool1', 'pool2', 'pool3', 'pool4', 'pool5'];
+
+async function fetchAllPools() {
+    const db = mongoose.connection.db;
+    let allPlayers = [];
+
+    for (const pool of POOLS) {
+        const poolPlayers = await db.collection(pool).find().toArray();
+        const normalized = poolPlayers.map(p => ({
+            _id: p._id,
+            name: p.player || p.name,
+            player: p.player || p.name,
+            role: p.role,
+            nationality: p.nationality || 'India',
+            isOverseas: (p.nationality && p.nationality.toLowerCase() !== 'india'),
+            basePrice: p.basePrice || 50,
+            image_path: p.image_path || p.imagepath,
+            stats: {
+                matches: p.matches || 0,
+                runs: p.runs || 0,
+                wickets: p.wickets || 0,
+                battingAvg: p.batting_avg || 0,
+                bowlingAvg: p.bowling_avg || 0,
+                strikeRate: p.batting_strike_rate || 0,
+                economy: p.bowling_economy || 0,
+                stumpings: p.stumpings || 0,
+                catches: p.catches || 0,
+                iplSeasonsActive: p.iplSeasonsActive || 0
+            }
+        }));
+        allPlayers = [...allPlayers, ...normalized];
+    }
+    return allPlayers;
+}
 
 const IPL_TEAMS = [
     { id: 'MI', name: 'Mumbai Indians', color: '#004BA0', logoUrl: 'https://toppng.com/show_download/469611/mumbai-indians-vector-logo' },
@@ -38,10 +73,9 @@ const setupSocketHandlers = (io) => {
             try {
                 const roomCode = generateRoomCode();
 
-                // Fetch top 500 players and randomize order
-                const players = await Player.find();
-                const shuffledPlayers = players.sort(() => 0.5 - Math.random());
-                const playerIds = shuffledPlayers.map(p => p._id);
+                // Fetch players from all pools and maintain pool order
+                const players = await fetchAllPools();
+                const playerIds = players.map(p => p._id);
 
                 // Fetch all 15 authentic IPL franchises
                 const dbFranchises = await Franchise.find();
@@ -121,6 +155,7 @@ const setupSocketHandlers = (io) => {
                     ownerSocketId: socket.id,
                     ownerName: playerName,
                     currentPurse: assignedTeamDef.purseLimit,
+                    overseasCount: 0,
                     rtmUsed: false,
                     playersAcquired: []
                 };
@@ -176,6 +211,11 @@ const setupSocketHandlers = (io) => {
             if (amount < requiredBid) return socket.emit('error', `Minimum bid is ${requiredBid}L`);
             if (amount > team.currentPurse) return socket.emit('error', 'Insufficient purse limit');
             if (team.playersAcquired.length >= 25) return socket.emit('error', 'Squad limit reached (max 25)');
+
+            // Overseas Limit Check
+            if (currentPlayer.isOverseas && (team.overseasCount || 0) >= 8) {
+                return socket.emit('error', 'Overseas player limit (8) reached for your team');
+            }
 
             // Accept bid
             state.currentBid = { amount, teamId: team.franchiseId, teamName: team.teamName, teamColor: team.teamThemeColor, teamLogo: team.teamLogo, ownerName: team.ownerName };
@@ -394,9 +434,13 @@ async function processHammerDown(roomCode, io) {
 
         if (winningTeamIndex !== -1) {
             state.teams[winningTeamIndex].currentPurse -= state.currentBid.amount;
+            if (player.isOverseas) {
+                state.teams[winningTeamIndex].overseasCount = (state.teams[winningTeamIndex].overseasCount || 0) + 1;
+            }
             state.teams[winningTeamIndex].playersAcquired.push({
                 player: player._id,
                 name: playerName,
+                isOverseas: player.isOverseas,
                 boughtFor: state.currentBid.amount
             });
             winningSocketId = state.teams[winningTeamIndex].ownerSocketId;

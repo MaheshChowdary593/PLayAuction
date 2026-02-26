@@ -391,7 +391,8 @@ const AuctionPodium = () => {
                                             <span className="px-2 py-0.5 rounded bg-white/20 text-[10px] font-black uppercase tracking-widest backdrop-blur-md">
                                                 {currentPlayer.role}
                                             </span>
-                                            <span className="px-2 py-0.5 rounded bg-blue-600/40 text-[10px] font-black uppercase tracking-widest backdrop-blur-md">
+                                            <span className="px-2 py-0.5 rounded bg-blue-600/40 text-[10px] font-black uppercase tracking-widest backdrop-blur-md flex items-center gap-1">
+                                                {currentPlayer.isOverseas && <span>✈️</span>}
                                                 {currentPlayer.nationality}
                                             </span>
                                         </div>
@@ -417,32 +418,62 @@ const AuctionPodium = () => {
                                 {/* Stats & Bidding Arena */}
                                 <div className="flex-1 flex flex-col justify-center py-8">
 
-                                    {/* Stats Grid */}
+                                    {/* Stats Grid - Role Specific */}
                                     <div className="grid grid-cols-3 gap-4 mb-12">
                                         <div className="glass-panel rounded-2xl p-4 border-white/5">
                                             <div className="text-[9px] text-slate-500 font-black uppercase tracking-[0.15em] mb-1">Matches</div>
-                                            <div className="text-2xl font-black font-mono bg-clip-text text-transparent bg-gradient-to-r from-white to-white/70">{currentPlayer.stats?.matches || currentPlayer.matches || 0}</div>
+                                            <div className="text-2xl font-black font-mono bg-clip-text text-transparent bg-gradient-to-r from-white to-white/70">{currentPlayer.stats?.matches || 0}</div>
                                         </div>
-                                        <div className="glass-panel rounded-2xl p-4 border-white/5">
-                                            <div className="text-[9px] text-slate-500 font-black uppercase tracking-[0.15em] mb-1">Runs</div>
-                                            <div className="text-2xl font-black font-mono bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-cyan-300">{currentPlayer.stats?.runs || currentPlayer.runs || 0}</div>
-                                        </div>
-                                        <div className="glass-panel rounded-2xl p-4 border-white/5">
-                                            <div className="text-[9px] text-slate-500 font-black uppercase tracking-[0.15em] mb-1">Average</div>
-                                            <div className="text-2xl font-black font-mono bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-cyan-300">{currentPlayer.stats?.average || currentPlayer.batting_avg || 0}</div>
-                                        </div>
-                                        <div className="glass-panel rounded-2xl p-4 border-white/5">
-                                            <div className="text-[9px] text-slate-500 font-black uppercase tracking-[0.15em] mb-1">Wickets</div>
-                                            <div className="text-2xl font-black font-mono bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-pink-400">{currentPlayer.stats?.wickets || currentPlayer.wickets || 0}</div>
-                                        </div>
-                                        <div className="glass-panel rounded-2xl p-4 border-white/5">
-                                            <div className="text-[9px] text-slate-500 font-black uppercase tracking-[0.15em] mb-1">Economy</div>
-                                            <div className="text-2xl font-black font-mono bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-pink-400">{currentPlayer.stats?.economy || currentPlayer.bowling_economy || 0}</div>
-                                        </div>
-                                        <div className="glass-panel rounded-2xl p-4 border-white/5">
-                                            <div className="text-[9px] text-slate-500 font-black uppercase tracking-[0.15em] mb-1">Strike Rate</div>
-                                            <div className="text-2xl font-black font-mono bg-clip-text text-transparent bg-gradient-to-r from-yellow-400 to-orange-500">{currentPlayer.stats?.strikeRate || currentPlayer.batting_strike_rate || 0}</div>
-                                        </div>
+
+                                        {/* Batting Stats for Batsmen, All-rounders and WK */}
+                                        {['Batsman', 'Batsmen', 'All-Rounder', 'Allrounder', 'Wicketkeeper', 'WK', 'batter'].includes(currentPlayer.role) && (
+                                            <>
+                                                <div className="glass-panel rounded-2xl p-4 border-white/5">
+                                                    <div className="text-[9px] text-slate-500 font-black uppercase tracking-[0.15em] mb-1">Runs</div>
+                                                    <div className="text-2xl font-black font-mono bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-cyan-300">{currentPlayer.stats?.runs || 0}</div>
+                                                </div>
+                                                <div className="glass-panel rounded-2xl p-4 border-white/5">
+                                                    <div className="text-[9px] text-slate-500 font-black uppercase tracking-[0.15em] mb-1">Bat Avg</div>
+                                                    <div className="text-2xl font-black font-mono bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-cyan-300">{currentPlayer.stats?.battingAvg || 0}</div>
+                                                </div>
+                                                <div className="glass-panel rounded-2xl p-4 border-white/5">
+                                                    <div className="text-[9px] text-slate-500 font-black uppercase tracking-[0.15em] mb-1">Strike Rate</div>
+                                                    <div className="text-2xl font-black font-mono bg-clip-text text-transparent bg-gradient-to-r from-yellow-400 to-orange-500">{currentPlayer.stats?.strikeRate || 0}</div>
+                                                </div>
+                                            </>
+                                        )}
+
+                                        {/* Bowling Stats for Bowlers and All-rounders */}
+                                        {['Bowler', 'All-Rounder', 'Allrounder', 'bowler'].includes(currentPlayer.role) && (
+                                            <>
+                                                <div className="glass-panel rounded-2xl p-4 border-white/5">
+                                                    <div className="text-[9px] text-slate-500 font-black uppercase tracking-[0.15em] mb-1">Wickets</div>
+                                                    <div className="text-2xl font-black font-mono bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-pink-400">{currentPlayer.stats?.wickets || 0}</div>
+                                                </div>
+                                                <div className="glass-panel rounded-2xl p-4 border-white/5">
+                                                    <div className="text-[9px] text-slate-500 font-black uppercase tracking-[0.15em] mb-1">Economy</div>
+                                                    <div className="text-2xl font-black font-mono bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-pink-400">{currentPlayer.stats?.economy || 0}</div>
+                                                </div>
+                                                <div className="glass-panel rounded-2xl p-4 border-white/5">
+                                                    <div className="text-[9px] text-slate-500 font-black uppercase tracking-[0.15em] mb-1">Bowl Avg</div>
+                                                    <div className="text-2xl font-black font-mono bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-pink-400">{currentPlayer.stats?.bowlingAvg || 0}</div>
+                                                </div>
+                                            </>
+                                        )}
+
+                                        {/* WK Specific Stats */}
+                                        {['Wicketkeeper', 'WK'].includes(currentPlayer.role) && (
+                                            <>
+                                                <div className="glass-panel rounded-2xl p-4 border-white/5">
+                                                    <div className="text-[9px] text-slate-500 font-black uppercase tracking-[0.15em] mb-1">Stumpings</div>
+                                                    <div className="text-2xl font-black font-mono bg-clip-text text-transparent bg-gradient-to-r from-green-400 to-emerald-400">{currentPlayer.stats?.stumpings || 0}</div>
+                                                </div>
+                                                <div className="glass-panel rounded-2xl p-4 border-white/5">
+                                                    <div className="text-[9px] text-slate-500 font-black uppercase tracking-[0.15em] mb-1">Catches</div>
+                                                    <div className="text-2xl font-black font-mono bg-clip-text text-transparent bg-gradient-to-r from-green-400 to-emerald-400">{currentPlayer.stats?.catches || 0}</div>
+                                                </div>
+                                            </>
+                                        )}
                                     </div>
 
                                     {/* Bidding Core */}
@@ -558,10 +589,10 @@ const AuctionPodium = () => {
                         {/* Authentic Diamond Paddle Bid Button */}
                         <button
                             onClick={handleBid}
-                            disabled={!myTeam || timer <= 0 || soldEvent || targetAmount > (myTeam?.currentPurse || 0) || currentBid.teamId === myTeam?.franchiseId || myTeam?.playersAcquired?.length >= 25}
+                            disabled={!myTeam || timer <= 0 || soldEvent || targetAmount > (myTeam?.currentPurse || 0) || currentBid.teamId === myTeam?.franchiseId || myTeam?.playersAcquired?.length >= 25 || (currentPlayer?.isOverseas && (myTeam?.overseasCount || 0) >= 8)}
                             className={`
                                 relative flex items-center justify-center w-32 h-44 ml-10 -mt-10 outline-none
-                                ${(!myTeam || timer <= 0 || soldEvent || targetAmount > (myTeam?.currentPurse || 0) || currentBid.teamId === myTeam?.franchiseId || isPaused || myTeam?.playersAcquired?.length >= 25)
+                                ${(!myTeam || timer <= 0 || soldEvent || targetAmount > (myTeam?.currentPurse || 0) || currentBid.teamId === myTeam?.franchiseId || isPaused || myTeam?.playersAcquired?.length >= 25 || (currentPlayer?.isOverseas && (myTeam?.overseasCount || 0) >= 8))
                                     ? 'opacity-30 grayscale cursor-not-allowed'
                                     : 'cursor-pointer'}
                             `}

@@ -152,7 +152,10 @@ const SquadSelection = () => {
                                                 {isSelected && <div className="w-2 h-2 bg-white rounded-full"></div>}
                                             </div>
                                             <div>
-                                                <div className="font-bold text-sm">{entry.name}</div>
+                                                <div className="font-bold text-sm flex items-center gap-1">
+                                                    {entry.name}
+                                                    {entry.isOverseas && <span title="Overseas Player">✈️</span>}
+                                                </div>
                                                 <div className="text-[10px] text-slate-500 uppercase font-black tracking-widest">₹{entry.boughtFor}L</div>
                                             </div>
                                         </div>
