@@ -559,6 +559,7 @@ async function finalizeResults(roomCode, io) {
             const playersWithData = await Promise.all(team.playersAcquired.map(async (p) => {
                 const data = await Player.findById(p.player).lean(); // Use lean() for plain JS object
                 return {
+                    id: String(p.player),
                     name: data?.player || data?.name || p.name,
                     role: data?.role,
                     nationality: data?.nationality,
@@ -567,11 +568,16 @@ async function finalizeResults(roomCode, io) {
                 };
             }));
 
+            // Fallback for playing15 if not set
+            const playing15 = (team.playing15 && team.playing15.length > 0)
+                ? team.playing15.map(id => String(id))
+                : team.playersAcquired.slice(0, 15).map(p => String(p.player));
+
             return {
                 teamName: team.teamName,
                 currentPurse: team.currentPurse,
                 playersAcquired: playersWithData,
-                playing15: team.playing15 || []
+                playing15: playing15
             };
         }));
 

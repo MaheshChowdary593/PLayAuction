@@ -13,8 +13,8 @@ Budget Remaining: ₹${team.currentPurse || team.budgetRemaining}L
 
 Drafted Squad (Playing 15):
 ${team.playersAcquired.map(p => {
-        const s = p.player?.stats || {};
-        return `- ${(p.player?.player || p.player?.name || p.name || 'Unknown')} (${p.player?.role}, ${p.player?.nationality}) | Matches: ${s.matches}, Runs: ${s.runs}, SR: ${s.strikeRate}, Wickets: ${s.wickets}, Econ: ${s.economy} | Price: ₹${p.boughtFor}L`;
+        const s = p.stats || {};
+        return `- ${p.name || 'Unknown'} (${p.role}, ${p.nationality}) | Matches: ${s.matches}, Runs: ${s.runs}, SR: ${s.strikeRate}, Wickets: ${s.wickets}, Econ: ${s.economy} | Price: ₹${p.boughtFor}L`;
     }).join('\n')}
 
 Analyze this squad deeply:
@@ -46,6 +46,7 @@ No other text. Be objective and critical.
         const response = await result.response;
         const text = response.text();
         console.log(`--- AI Response received for ${team.teamName} ---`);
+        console.log("RAW AI TEXT:", text);
         // Clean JSON formatting if Gemini adds markdown codeblocks
         const cleanedText = text.replace(/```json/g, '').replace(/```/g, '').trim();
         return JSON.parse(cleanedText);
@@ -64,29 +65,27 @@ No other text. Be objective and critical.
 const calculateHeuristicScore = (team) => {
     const players = team.playersAcquired;
     const roles = {
-        'Batsman': 0,
+        'batsman': 0,
         'Bowler': 0,
         'All-Rounder': 0,
-        'Wicket-Keeper': 0
+        'Wicketkeeper': 0
     };
 
     players.forEach(p => {
-        const role = p.player?.role || 'Batsman';
-        if (roles.hasOwnProperty(role)) roles[role]++;
-        else if (role.includes('Keep')) roles['Wicket-Keeper']++;
-        else if (role.includes('Bat')) roles['Batsman']++;
-        else if (role.includes('Bowl')) roles['Bowler']++;
-        else roles['All-Rounder']++;
+        const role = (p.role || 'Batsman').toLowerCase();
+        if (role.includes('keep')) roles['Wicketkeeper']++;
+        else if (role.includes('all')) roles['All-Rounder']++;
+        else if (role.includes('bowl')) roles['Bowler']++;
+        else roles['batsman']++; // Default
     });
 
     // Simple IPL squad balance heuristic
-    // ideal: 5-6 bats, 4-5 bowls, 3-4 AR, 1-2 WK
     let balancePoints = 0;
-    if (roles['Batsman'] >= 5) balancePoints += 20;
+    if (roles['batsman'] >= 5) balancePoints += 20;
     if (roles['Bowler'] >= 4) balancePoints += 20;
     if (roles['All-Rounder'] >= 2) balancePoints += 20;
-    if (roles['Wicket-Keeper'] >= 1) balancePoints += 20;
-    if (players.length >= 15) balancePoints += 20;
+    if (roles['Wicketkeeper'] >= 1) balancePoints += 20;
+    if (players.length >= 11) balancePoints += 20;
 
     return balancePoints;
 };
@@ -136,12 +135,13 @@ const evaluateAllTeams = async (teamsData) => {
             // If playing15 is set, only evaluate those players
             // Otherwise use playersAcquired
             const squadToEvaluate = (team.playing15 && team.playing15.length > 0)
-                ? team.playersAcquired.filter(p => team.playing15.includes(String(p.player?._id || p.player)))
+                ? team.playersAcquired.filter(p => team.playing15.includes(String(p.id)))
                 : team.playersAcquired;
 
             const hScore = calculateHeuristicScore({ ...team, playersAcquired: squadToEvaluate });
             let evaluation;
             try {
+                console.log(`--- EVALUATING SQUAD FOR ${team.teamName} (${squadToEvaluate.length} players) ---`);
                 evaluation = await evaluateTeam({ ...team, playersAcquired: squadToEvaluate });
                 // Blend with heuristic or ensure overallScore isn't 0 if AI fails
                 if (evaluation.overallScore === 0) evaluation.overallScore = hScore;
@@ -151,10 +151,9 @@ const evaluateAllTeams = async (teamsData) => {
                     bowlingScore: Math.round(hScore / 10),
                     balanceScore: Math.round(hScore / 10),
                     impactScore: 7,
-                    overallScore: hScore,
                     starPlayer: "N/A",
                     hiddenGem: "N/A",
-                    playing11: squadToEvaluate.slice(0, 11).map(p => p.player?.player || p.player?.name || "Unknown"),
+                    playing11: squadToEvaluate.slice(0, 11).map(p => p.name || "Unknown"),
                     tacticalVerdict: "Heuristic evaluation complete. Squad meets minimum requirements for a competitive season.",
                     weakness: "Manual analysis recommended for deeper tactical insight.",
                     historicalContext: "Standard squad composition."
