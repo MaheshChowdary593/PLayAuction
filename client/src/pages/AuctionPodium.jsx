@@ -195,7 +195,8 @@ const AuctionPodium = () => {
 
     const ringRadius = 45;
     const ringCircumference = 2 * Math.PI * ringRadius;
-    const timerDashoffset = ringCircumference - (timer / 10) * ringCircumference;
+    const maxTimer = gameState?.timerDuration || 10;
+    const timerDashoffset = ringCircumference - (timer / maxTimer) * ringCircumference;
 
     let timerColor = '#00d2ff';
     if (timer <= 5) timerColor = '#ffcc33';
