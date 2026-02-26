@@ -6,19 +6,19 @@ import { motion, AnimatePresence } from 'framer-motion';
 const IPL_TEAMS = [
     { id: 'MI', name: 'Mumbai Indians', color: '#004BA0', logoUrl: 'https://upload.wikimedia.org/wikipedia/en/thumb/c/cd/Mumbai_Indians_Logo.svg/1200px-Mumbai_Indians_Logo.svg.png' },
     { id: 'CSK', name: 'Chennai Super Kings', color: '#FFFF3C', logoUrl: 'https://upload.wikimedia.org/wikipedia/en/thumb/2/2b/Chennai_Super_Kings_Logo.svg/1200px-Chennai_Super_Kings_Logo.svg.png' },
-    { id: 'RCB', name: 'Royal Challengers Bengaluru', color: '#EC1C24', logoUrl: 'https://upload.wikimedia.org/wikipedia/en/thumb/2/2a/Royal_Challengers_Bangalore_2020.svg/1200px-Royal_Challengers_Bangalore_2020.svg.png' },
+    { id: 'RCB', name: 'Royal Challengers Bengaluru', color: '#EC1C24', logoUrl: 'https://upload.wikimedia.org/wikipedia/en/thumb/d/d4/Royal_Challengers_Bengaluru_Logo.svg/330px-Royal_Challengers_Bengaluru_Logo.svg.png' },
     { id: 'KKR', name: 'Kolkata Knight Riders', color: '#2E0854', logoUrl: 'https://upload.wikimedia.org/wikipedia/en/thumb/4/4c/Kolkata_Knight_Riders_Logo.svg/1200px-Kolkata_Knight_Riders_Logo.svg.png' },
-    { id: 'DC', name: 'Delhi Capitals', color: '#00008B', logoUrl: 'https://upload.wikimedia.org/wikipedia/en/thumb/f/f5/Delhi_Capitals_Logo.svg/1200px-Delhi_Capitals_Logo.svg.png' },
+    { id: 'DC', name: 'Delhi Capitals', color: '#00008B', logoUrl: 'https://upload.wikimedia.org/wikipedia/en/thumb/2/2f/Delhi_Capitals.svg/500px-Delhi_Capitals.svg.png' },
     { id: 'PBKS', name: 'Punjab Kings', color: '#ED1B24', logoUrl: 'https://upload.wikimedia.org/wikipedia/en/thumb/d/d4/Punjab_Kings_Logo.svg/1200px-Punjab_Kings_Logo.svg.png' },
-    { id: 'RR', name: 'Rajasthan Royals', color: '#EA1A85', logoUrl: 'https://upload.wikimedia.org/wikipedia/en/thumb/6/60/Rajasthan_Royals_Logo.svg/1200px-Rajasthan_Royals_Logo.svg.png' },
-    { id: 'SRH', name: 'Sunrisers Hyderabad', color: '#FF822A', logoUrl: 'https://upload.wikimedia.org/wikipedia/en/thumb/8/81/Sunrisers_Hyderabad.svg/1200px-Sunrisers_Hyderabad.svg.png' },
+    { id: 'RR', name: 'Rajasthan Royals', color: '#EA1A85', logoUrl: 'https://scores.iplt20.com/ipl/teamlogos/RR.png' },
+    { id: 'SRH', name: 'Sunrisers Hyderabad', color: '#FF822A', logoUrl: 'https://upload.wikimedia.org/wikipedia/en/thumb/5/51/Sunrisers_Hyderabad_Logo.svg/500px-Sunrisers_Hyderabad_Logo.svg.png' },
     { id: 'LSG', name: 'Lucknow Super Giants', color: '#00D1FF', logoUrl: 'https://upload.wikimedia.org/wikipedia/en/thumb/a/a9/Lucknow_Super_Giants_IPL_Logo.svg/1200px-Lucknow_Super_Giants_IPL_Logo.svg.png' },
     { id: 'GT', name: 'Gujarat Titans', color: '#1B2133', logoUrl: 'https://upload.wikimedia.org/wikipedia/en/thumb/0/09/Gujarat_Titans_Logo.svg/1200px-Gujarat_Titans_Logo.svg.png' },
-    { id: 'DCG', name: 'Deccan Chargers', color: '#D1E1EF', logoUrl: 'https://upload.wikimedia.org/wikipedia/en/thumb/a/aa/Deccan_Chargers_Logo.svg/1200px-Deccan_Chargers_Logo.svg.png' },
-    { id: 'KTK', name: 'Kochi Tuskers Kerala', color: '#F15A24', logoUrl: 'https://upload.wikimedia.org/wikipedia/en/thumb/8/8b/Kochi_Tuskers_Kerala_Logo.svg/1200px-Kochi_Tuskers_Kerala_Logo.svg.png' },
-    { id: 'PWI', name: 'Pune Warriors India', color: '#40E0D0', logoUrl: 'https://upload.wikimedia.org/wikipedia/en/thumb/4/4b/Pune_Warriors_India_Logo.svg/1200px-Pune_Warriors_India_Logo.svg.png' },
-    { id: 'RPS', name: 'Rising Pune Supergiant', color: '#D11D70', logoUrl: 'https://upload.wikimedia.org/wikipedia/en/thumb/7/75/Rising_Pune_Supergiant_Logo.svg/1200px-Rising_Pune_Supergiant_Logo.svg.png' },
-    { id: 'GL', name: 'Gujarat Lions', color: '#E04F16', logoUrl: 'https://upload.wikimedia.org/wikipedia/en/thumb/3/30/Gujarat_Lions_Logo.svg/1200px-Gujarat_Lions_Logo.svg.png' },
+    { id: 'DCG', name: 'Deccan Chargers', color: '#D1E1EF', logoUrl: 'https://upload.wikimedia.org/wikipedia/en/a/a6/HyderabadDeccanChargers.png' },
+    { id: 'KTK', name: 'Kochi Tuskers Kerala', color: '#F15A24', logoUrl: 'https://upload.wikimedia.org/wikipedia/en/thumb/9/96/Kochi_Tuskers_Kerala_Logo.svg/500px-Kochi_Tuskers_Kerala_Logo.svg.png' },
+    { id: 'PWI', name: 'Pune Warriors India', color: '#40E0D0', logoUrl: 'https://upload.wikimedia.org/wikipedia/en/4/4a/Pune_Warriors_India_IPL_Logo.png' },
+    { id: 'RPS', name: 'Rising Pune Supergiant', color: '#D11D70', logoUrl: 'https://upload.wikimedia.org/wikipedia/en/9/9a/Rising_Pune_Supergiant.png' },
+    { id: 'GL', name: 'Gujarat Lions', color: '#E04F16', logoUrl: 'https://upload.wikimedia.org/wikipedia/en/c/c4/Gujarat_Lions.png' },
 ];
 
 const Lobby = () => {
@@ -27,6 +27,7 @@ const Lobby = () => {
     const [roomCodeInput, setRoomCodeInput] = useState('');
     const [isJoined, setIsJoined] = useState(false);
     const [roomState, setRoomState] = useState(null);
+    const [timerDuration, setTimerDuration] = useState(10);
     const [error, setError] = useState('');
 
     // New state for dynamic team selection during join flow
@@ -73,6 +74,10 @@ const Lobby = () => {
             setRoomState(null);
             setHasClaimedTeam(false);
             setError('You have been removed from the room by the host.');
+        });
+
+        socket.on('settings_updated', ({ timerDuration }) => {
+            setTimerDuration(timerDuration);
         });
 
         return () => {
@@ -224,18 +229,37 @@ const Lobby = () => {
                                     <div className="space-y-4 bg-white/5 p-4 rounded-3xl border border-white/10">
                                         <h3 className="text-[10px] font-black text-blue-400 uppercase tracking-widest text-center">Step 2: Claim Your Franchise</h3>
                                         <div className="grid grid-cols-4 gap-2 max-h-48 overflow-y-auto custom-scrollbar pr-2">
-                                            {displayTeams.map(team => {
-                                                const tId = team.shortName || team.id;
-                                                const tColor = team.primaryColor || team.color;
+                                            {IPL_TEAMS.map(team => {
+                                                const tId = team.id;
+                                                // Check if team is already claimed by anyone in the room
+                                                const isClaimed = roomState?.teams?.some(t => {
+                                                    // roomState.teams has teamName, franchisdId.
+                                                    // Because franchise IDs sometimes mismatch shortNames depending on DB, matching by name is safer.
+                                                    return t.teamName === team.name;
+                                                });
+
                                                 return (
                                                     <button
                                                         key={tId}
-                                                        onClick={() => setSelectedTeamId(tId)}
-                                                        className={`p-2 rounded-xl border text-[9px] font-black tracking-wider uppercase transition-all flex flex-col items-center justify-center gap-2 ${selectedTeamId === tId ? 'bg-blue-500/40 border-blue-400 shadow-[0_0_15px_rgba(59,130,246,0.3)] scale-105 z-10' : 'bg-white/5 border-white/5 hover:bg-white/10'
+                                                        onClick={() => {
+                                                            if (!isClaimed) setSelectedTeamId(tId);
+                                                        }}
+                                                        disabled={isClaimed}
+                                                        className={`p-2 rounded-xl border text-[9px] font-black tracking-wider uppercase transition-all flex flex-col items-center justify-center gap-2 relative overflow-hidden
+                                                            ${isClaimed
+                                                                ? 'bg-black/40 border-slate-800 opacity-50 cursor-not-allowed grayscale'
+                                                                : selectedTeamId === tId
+                                                                    ? 'bg-blue-500/40 border-blue-400 shadow-[0_0_15px_rgba(59,130,246,0.3)] scale-105 z-10'
+                                                                    : 'bg-white/5 border-white/5 hover:bg-white/10'
                                                             }`}
                                                     >
-                                                        <img src={team.logoUrl} alt={tId} className="w-10 h-10 object-contain drop-shadow-lg" />
-                                                        <span className="truncate w-full text-center text-slate-300">{tId}</span>
+                                                        {isClaimed && (
+                                                            <div className="absolute inset-0 bg-red-900/20 flex items-center justify-center backdrop-blur-[1px] z-20">
+                                                                <span className="bg-red-600 text-white text-[8px] px-2 py-0.5 rounded shadow-lg transform -rotate-12">CLAIMED</span>
+                                                            </div>
+                                                        )}
+                                                        <img src={team.logoUrl} alt={tId} className={`w-10 h-10 object-contain drop-shadow-lg ${isClaimed ? 'opacity-40' : ''}`} />
+                                                        <span className={`truncate w-full text-center ${isClaimed ? 'text-slate-600 line-through' : 'text-slate-300'}`}>{tId}</span>
                                                     </button>
                                                 )
                                             })}
@@ -288,10 +312,30 @@ const Lobby = () => {
                                             ))}
                                         </div>
 
+                                        {roomState.host === socket.id && (
+                                            <div className="mt-8 space-y-4">
+                                                <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Auction Timer Settings</h3>
+                                                <div className="flex gap-4">
+                                                    {[5, 10].map(sec => (
+                                                        <button
+                                                            key={sec}
+                                                            onClick={() => socket.emit('update_settings', { roomCode: roomState.roomCode, timerDuration: sec })}
+                                                            className={`flex-1 py-3 rounded-xl border font-black uppercase tracking-widest text-[10px] transition-all
+                                                                ${timerDuration === sec
+                                                                    ? 'bg-blue-600 border-blue-400 text-white shadow-lg shadow-blue-900/40'
+                                                                    : 'bg-white/5 border-white/5 text-slate-500 hover:border-white/20'}`}
+                                                        >
+                                                            {sec} Seconds
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+
                                         {roomState.host === socket.id ? (
                                             <button
                                                 onClick={handleStart}
-                                                className="w-full btn-premium bg-white shadow-[0_0_50px_rgba(255,255,255,0.2)] mt-4"
+                                                className="w-full btn-premium bg-white shadow-[0_0_50px_rgba(255,255,255,0.2)] mt-6"
                                             >
                                                 Initiate Auction Loop
                                             </button>

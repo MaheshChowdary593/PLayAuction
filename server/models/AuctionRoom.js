@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const auctionRoomSchema = new mongoose.Schema({
     roomId: { type: String, required: true, unique: true },
     hostSocketId: { type: String }, // For legacy engine reference
-    status: { type: String, enum: ["Lobby", "Auctioning", "Finished"], default: "Lobby" },
+    status: { type: String, enum: ["Lobby", "Auctioning", "Selection", "Finished"], default: "Lobby" },
     purseLimit: { type: Number, default: 12000 },
 
     // Embedded array of franchises inside this specific room
@@ -14,7 +14,15 @@ const auctionRoomSchema = new mongoose.Schema({
         ownerSocketId: { type: String },
         ownerName: { type: String },
         currentPurse: { type: Number, default: 12000 },
-        rtmUsed: { type: Boolean, default: false }
+        rtmUsed: { type: Boolean, default: false },
+        playersAcquired: [{
+            player: { type: mongoose.Schema.Types.ObjectId, ref: 'Player' },
+            name: { type: String },
+            boughtFor: { type: Number }
+        }],
+        playing15: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Player' }],
+        evaluation: { type: Object }, // Store detailed AI results
+        rank: { type: Number }         // Store final ranking
     }],
 
     currentPlayerIndex: { type: Number, default: 0 },

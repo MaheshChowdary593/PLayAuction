@@ -1,15 +1,14 @@
 import React, { useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import confetti from 'canvas-confetti';
 import { playCustomSlam } from '../utils/soundEngine';
 
-const GavelSlam = ({ type, teamName, teamColor, amount, playerName, ownerName }) => {
+const GavelSlam = ({ type, teamName, teamColor, teamLogo, playerName, winningBid }) => {
 
     useEffect(() => {
         playCustomSlam(type, teamName);
 
         if (type === 'SOLD') {
-            // Trigger confetti after the slam delay
             const timer = setTimeout(() => {
                 const end = Date.now() + 3000;
                 const colors = [teamColor || '#ffffff', '#ffffff', '#ffcc33'];
@@ -37,132 +36,104 @@ const GavelSlam = ({ type, teamName, teamColor, amount, playerName, ownerName })
             }, 500);
             return () => clearTimeout(timer);
         }
-    }, [type, teamColor]);
+    }, [type, teamColor, teamName]);
 
+    // Generate the starburst badge outer path
+    const getStarburstPath = (cx, cy, outerRadius, innerRadius, points) => {
+        let path = '';
+        const angleStep = Math.PI / points;
+        for (let i = 0; i < 2 * points; i++) {
+            const radius = i % 2 === 0 ? outerRadius : innerRadius;
+            const angle = i * angleStep;
+            const x = cx + radius * Math.cos(angle);
+            const y = cy + radius * Math.sin(angle);
+            path += (i === 0 ? 'M ' : 'L ') + `${x},${y} `;
+        }
+        path += 'Z';
+        return path;
+    };
+
+    if (type === 'SOLD') {
+        const cx = 140;
+        const cy = 140;
+        const starburstPath = getStarburstPath(cx, cy, 130, 115, 32);
+        const badgeColor = teamColor || '#FFEB3B';
+
+        return (
+            <motion.div
+                initial={{ scale: 2, opacity: 0, rotate: -20 }}
+                animate={{ scale: 0.5, opacity: 1, rotate: -10 }}
+                exit={{ scale: 0, opacity: 0, y: -50 }}
+                transition={{ type: "spring", stiffness: 200, damping: 12, delay: 0.1 }}
+                className="absolute z-[100] drop-shadow-[0_20px_30px_rgba(0,0,0,0.5)] flex items-center justify-center pointer-events-none"
+            >
+                <svg width="280" height="280" viewBox="0 0 280 280" className="overflow-visible">
+                    <defs>
+                        <path id="curveTop" d={`M ${cx - 75},${cy} A 75,75 0 0,1 ${cx + 75},${cy}`} fill="transparent" />
+                        <path id="curveBottom" d={`M ${cx - 85},${cy} A 85,85 0 0,0 ${cx + 85},${cy}`} fill="transparent" />
+                        <filter id="shadowGlow" x="-20%" y="-20%" width="140%" height="140%">
+                            <feDropShadow dx="0" dy="4" stdDeviation="6" floodOpacity="0.4" floodColor="#000" />
+                        </filter>
+                    </defs>
+
+                    {/* Starburst Base */}
+                    <path d={starburstPath} fill={badgeColor} stroke="rgba(255,255,255,0.4)" strokeWidth="3" filter="url(#shadowGlow)" />
+
+                    {/* Inner Accent Ring */}
+                    <circle cx={cx} cy={cy} r="105" fill={badgeColor} stroke="rgba(0,0,0,0.2)" strokeWidth="3" />
+
+                    {/* Inner Content Area */}
+                    <circle cx={cx} cy={cy} r="95" fill={badgeColor} stroke="white" strokeWidth="2" strokeDasharray="6 4" />
+                    <circle cx={cx} cy={cy} r="50" fill="white" stroke="rgba(0,0,0,0.1)" strokeWidth="2" />
+
+                    {/* Top Text: Player Name */}
+                    <text fontSize={playerName && playerName.length > 12 ? "18" : "22"} fontWeight="900" fill="white" letterSpacing="1" style={{ fontFamily: 'Outfit, Arial, sans-serif', textShadow: '2px 2px 4px rgba(0,0,0,0.9)', stroke: 'rgba(0,0,0,0.5)', strokeWidth: '0.5px' }}>
+                        <textPath href="#curveTop" startOffset="50%" textAnchor="middle">
+                            {playerName ? playerName.toUpperCase() : "PLAYER"}
+                        </textPath>
+                    </text>
+
+                    {/* Bottom Text: SOLD TO Team and Amount */}
+                    <text fontSize={teamName && teamName.length > 15 ? "11" : "13"} fontWeight="900" fill="white" letterSpacing="0.5" style={{ fontFamily: 'Outfit, Arial, sans-serif', textShadow: '2px 2px 4px rgba(0,0,0,0.9)', stroke: 'rgba(0,0,0,0.5)', strokeWidth: '0.5px' }}>
+                        <textPath href="#curveBottom" startOffset="50%" textAnchor="middle">
+                            SOLD TO {teamName ? teamName.toUpperCase().substring(0, 20) : "FRANCHISE"} • ₹{winningBid?.amount || '0'}L
+                        </textPath>
+                    </text>
+
+                    {/* Team Logo or Initial */}
+                    {teamLogo ? (
+                        <image href={teamLogo} x={cx - 40} y={cy - 40} width="80" height="80" preserveAspectRatio="xMidYMid meet" />
+                    ) : (
+                        <text x={cx} y={cy + 12} fontSize="36" fontWeight="900" textAnchor="middle" fill="#000">
+                            {teamName?.charAt(0)}
+                        </text>
+                    )}
+                </svg>
+            </motion.div>
+        );
+    }
+
+    // UNSOLD Rubber Stamp Style
     return (
         <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-xl"
+            initial={{ scale: 2, opacity: 0, rotate: 10 }}
+            animate={{ scale: 0.5, opacity: 1, rotate: -15 }}
+            exit={{ scale: 0, opacity: 0, y: -50 }}
+            transition={{ type: "spring", stiffness: 200, damping: 10, delay: 0.1 }}
+            className="absolute z-[100] px-10 py-5 border-[8px] border-red-600 rounded-3xl drop-shadow-[0_15px_15px_rgba(220,38,38,0.4)] bg-black/60 backdrop-blur-sm pointer-events-none overflow-hidden"
+            style={{
+                boxShadow: 'inset 0 0 15px rgba(220,38,38,0.4), 0 0 15px rgba(220,38,38,0.2)'
+            }}
         >
-            <motion.div
-                className="relative flex flex-col items-center"
-                animate={{ x: [0, -30, 30, -15, 15, 0], y: [0, 30, -30, 15, -15, 0] }}
-                transition={{ duration: 0.4, delay: 0.15, ease: "easeOut" }}
-            >
-
-                {/* The Gavel Icon Slamming */}
-                <motion.div
-                    initial={{ rotate: -60, y: -300, opacity: 0 }}
-                    animate={{ rotate: 0, y: 0, opacity: 1 }}
-                    transition={{
-                        type: "spring",
-                        damping: 10,
-                        stiffness: 250,
-                        delay: 0.05
-                    }}
-                    className="mb-12 origin-bottom-right"
-                >
-                    <svg width="240" height="240" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ filter: 'drop-shadow(0 30px 40px rgba(0,0,0,0.8))' }}>
-                        {/* Shadow under hammer block */}
-                        <ellipse cx="100" cy="185" rx="70" ry="12" fill="rgba(0,0,0,0.6)" />
-
-                        {/* Sounding Block */}
-                        <path d="M30 160 L170 160 L185 180 L15 180 Z" fill={type === 'SOLD' ? teamColor : '#8B0000'} />
-                        <path d="M35 150 L165 150 L170 160 L30 160 Z" fill="rgba(255,255,255,0.2)" />
-
-                        {/* Hammer Handle (Wood) */}
-                        <rect x="90" y="50" width="20" height="100" rx="5" fill="#5C2E0E" />
-                        <rect x="90" y="50" width="8" height="100" rx="4" fill="#8B4513" />
-                        <rect x="85" y="130" width="30" height="15" rx="3" fill="#D4AF37" />
-
-                        {/* Hammer Head */}
-                        <rect x="50" y="30" width="100" height="45" rx="12" fill="#5C2E0E" />
-                        <rect x="50" y="30" width="100" height="15" rx="8" fill="#8B4513" />
-                        <rect x="35" y="35" width="25" height="35" rx="6" fill="#3E1D04" />
-                        <rect x="140" y="35" width="25" height="35" rx="6" fill="#3E1D04" />
-
-                        {/* Gold Brass Bands */}
-                        <rect x="70" y="30" width="12" height="45" fill="#D4AF37" />
-                        <rect x="118" y="30" width="12" height="45" fill="#D4AF37" />
-                        <rect x="72" y="30" width="2" height="45" fill="#FFF8DC" />
-                        <rect x="120" y="30" width="2" height="45" fill="#FFF8DC" />
-                    </svg>
-                </motion.div>
-
-                <AnimatePresence>
-                    <motion.div
-                        initial={{ scale: 0.8, opacity: 0, y: 50 }}
-                        animate={{ scale: 1, opacity: 1, y: 0 }}
-                        transition={{ delay: 0.2, type: "spring", stiffness: 300, damping: 20 }}
-                        className="text-center"
-                    >
-                        {type === 'SOLD' ? (
-                            <>
-                                <h1 className="text-9xl font-black text-white italic tracking-tighter mb-2 overflow-hidden drop-shadow-2xl">
-                                    <motion.span
-                                        initial={{ y: 150 }}
-                                        animate={{ y: 0 }}
-                                        transition={{ type: "spring", stiffness: 200, damping: 15, delay: 0.3 }}
-                                        className="inline-block"
-                                    >
-                                        SOLD!
-                                    </motion.span>
-                                </h1>
-                                <motion.div
-                                    initial={{ opacity: 0 }}
-                                    animate={{ opacity: 1 }}
-                                    transition={{ delay: 0.5 }}
-                                    className="text-5xl font-black drop-shadow-[0_0_20px_rgba(255,255,255,0.6)] uppercase tracking-tight flex flex-col items-center gap-1 mb-8"
-                                    style={{ color: teamColor }}
-                                >
-                                    <span>{teamName}</span>
-                                    {ownerName && (
-                                        <span className="text-xl font-bold tracking-[0.3em] opacity-90 text-white drop-shadow-md">
-                                            {ownerName}
-                                        </span>
-                                    )}
-                                </motion.div>
-                                <motion.div
-                                    initial={{ opacity: 0, y: 20 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    transition={{ delay: 0.6 }}
-                                    className="glass-card px-10 py-5 rounded-[30px] flex items-center justify-center gap-8 border-white/10 shadow-2xl"
-                                >
-                                    <div className="text-left">
-                                        <div className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-1">Player Acquired</div>
-                                        <div className="text-2xl font-black text-white">{playerName}</div>
-                                    </div>
-                                    <div className="h-12 w-px bg-white/20"></div>
-                                    <div className="text-right">
-                                        <div className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-1">Winning Bid</div>
-                                        <div className="text-3xl font-mono font-black text-white drop-shadow-lg">₹{amount}L</div>
-                                    </div>
-                                </motion.div>
-                            </>
-                        ) : (
-                            <motion.div
-                                initial={{ scale: 3, opacity: 0, rotate: -20 }}
-                                animate={{ scale: 1, opacity: 1, rotate: -10 }}
-                                transition={{ type: "spring", stiffness: 200, damping: 10, delay: 0.2 }}
-                                className="border-[16px] border-red-600 text-red-600 px-20 py-10 border-double rounded-3xl bg-black/50 backdrop-blur"
-                                style={{ filter: 'drop-shadow(0 0 50px rgba(220, 38, 38, 0.4))' }}
-                            >
-                                <h1 className="text-[140px] font-black uppercase tracking-tighter leading-none">UNSOLD</h1>
-                            </motion.div>
-                        )}
-                    </motion.div>
-                </AnimatePresence>
-            </motion.div>
-
-            {/* Cinematic Strobe & Flash on Impact */}
-            <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: [0, 0.8, 0.2, 0.6, 0] }}
-                transition={{ duration: 0.4, delay: 0.15, times: [0, 0.1, 0.3, 0.6, 1] }}
-                className="absolute inset-0 bg-white pointer-events-none mix-blend-overlay"
-            />
+            <div className="absolute inset-0 border-[3px] border-red-600/60 m-2 rounded-2xl" style={{ borderStyle: 'dotted' }}></div>
+            <h1 className="text-6xl font-black uppercase tracking-[0.3em] leading-none text-red-600 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] opacity-95"
+                style={{
+                    fontFamily: '"Courier New", Courier, monospace',
+                    transform: 'scaleY(1.3)',
+                    textShadow: '2px 2px 4px rgba(0,0,0,0.8), -1px -1px 0 #991b1b, 1px -1px 0 #991b1b, -1px 1px 0 #991b1b, 1px 1px 0 #991b1b'
+                }}>
+                UNSOLD
+            </h1>
         </motion.div>
     );
 };

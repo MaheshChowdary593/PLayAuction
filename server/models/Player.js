@@ -1,12 +1,15 @@
 const mongoose = require('mongoose');
 
 const playerSchema = new mongoose.Schema({
-  playerId: { type: String, required: true, unique: true },
-  name: { type: String, required: true },
-  role: { type: String, enum: ["Batsman", "Bowler", "All-Rounder", "Wicketkeeper"], required: true },
-  nationality: { type: String, required: true },
-  basePrice: { type: Number, required: true },
+  playerId: { type: String, unique: true },
+  name: { type: String },
+  player: { type: String }, // Actual field in new_enhanced collection
+  role: { type: String, enum: ["Batsman", "Bowler", "All-Rounder", "Wicketkeeper"] },
+  nationality: { type: String },
+  basePrice: { type: Number, default: 50 },
   photoUrl: { type: String },
+  imagepath: { type: String },
+  image_path: { type: String }, // Actual field in new_enhanced collection
   stats: {
     matches: { type: Number, default: 0 },
     runs: { type: Number, default: 0 },
@@ -23,8 +26,6 @@ const playerSchema = new mongoose.Schema({
   }
 }, { timestamps: true });
 
-// Basic indexes
-playerSchema.index({ "playerId": 1 }, { unique: true });
 playerSchema.index({ "role": 1 });
 
-module.exports = mongoose.model('Player', playerSchema);
+module.exports = mongoose.model('Player', playerSchema, 'new_enhanced');

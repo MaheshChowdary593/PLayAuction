@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { SocketProvider } from './context/SocketContext';
 import Lobby from './pages/Lobby';
 import AuctionPodium from './pages/AuctionPodium';
+import SquadSelection from './pages/SquadSelection';
 import ResultsReveal from './pages/ResultsReveal';
 
 function App() {
@@ -13,6 +14,7 @@ function App() {
           <Routes>
             <Route path="/" element={<Lobby />} />
             <Route path="/auction/:roomCode" element={<AuctionPodium />} />
+            <Route path="/selection/:roomCode" element={<SquadSelection />} />
             <Route path="/results/:roomCode" element={<ResultsReveal />} />
           </Routes>
         </div>

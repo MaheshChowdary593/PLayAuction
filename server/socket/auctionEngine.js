@@ -6,19 +6,19 @@ const Franchise = require('../models/Franchise');
 const IPL_TEAMS = [
     { id: 'MI', name: 'Mumbai Indians', color: '#004BA0', logoUrl: 'https://toppng.com/show_download/469611/mumbai-indians-vector-logo' },
     { id: 'CSK', name: 'Chennai Super Kings', color: '#FFFF3C', logoUrl: 'https://toppng.com/show_download/192192/chennai-super-kings-logo-png-csk-team-2018-players-list-free-download' },
-    { id: 'RCB', name: 'Royal Challengers Bengaluru', color: '#EC1C24', logoUrl: 'https://in.pinterest.com/pin/royal-challengers-bangalore-new-logo-in-hd-free-png-download--306948530866903560/' },
-    { id: 'KKR', name: 'Kolkata Knight Riders', color: '#2E0854', logoUrl: 'https://www.pngfind.com/mpng/TRbxmTm_kolkata-knight-riders-logo-png-transparent-png/' },
-    { id: 'DC', name: 'Delhi Capitals', color: '#00008B', logoUrl: 'https://imgbin.com/free-png/delhi-capitals-logo' },
-    { id: 'PBKS', name: 'Punjab Kings', color: '#ED1B24', logoUrl: 'https://imgbin.com/free-png/punjab-kings-logo' },
-    { id: 'RR', name: 'Rajasthan Royals', color: '#EA1A85', logoUrl: 'https://toppng.com/vector/rajasthan-royals-vector-logo/469605' },
-    { id: 'DCG', name: 'Deccan Chargers', color: '#D1E1EF', logoUrl: 'https://www.pngfind.com/mpng/iTRbiwm_chargers-logo-png-logo-for-cricket-team-transparent/' },
-    { id: 'KTK', name: 'Kochi Tuskers Kerala', color: '#F15A24', logoUrl: 'https://www.pngaaa.com/detail/5852104' },
-    { id: 'PWI', name: 'Pune Warriors India', color: '#40E0D0', logoUrl: 'https://www.pngwing.com/en/search?q=pune+warriors+india+logo' },
-    { id: 'SRH', name: 'Sunrisers Hyderabad', color: '#FF822A', logoUrl: 'https://www.clipartmax.com/middle/m2H7H7A0i8b1b1G6_sunrisers-hyderabad-team-player-details-sunrisers-hyderabad-logo/' },
-    { id: 'RPS', name: 'Rising Pune Supergiant', color: '#D11D70', logoUrl: 'https://www.pngfind.com/mpng/ibhobo_rising-pune-supergiants-logo-png-rising-pune-supergiants/' },
-    { id: 'GL', name: 'Gujarat Lions', color: '#E04F16', logoUrl: 'https://www.pngegg.com/en/search?q=gujarat+Lions' },
-    { id: 'LSG', name: 'Lucknow Super Giants', color: '#00D1FF', logoUrl: 'https://in.pinterest.com/pin/lucknow-super-giants-logo--91479436176082676/' },
-    { id: 'GT', name: 'Gujarat Titans', color: '#1B2133', logoUrl: 'https://in.pinterest.com/pin/1023583821547288995/' },
+    { id: 'RCB', name: 'Royal Challengers Bengaluru', color: '#EC1C24', logoUrl: 'https://upload.wikimedia.org/wikipedia/en/thumb/d/d4/Royal_Challengers_Bengaluru_Logo.svg/330px-Royal_Challengers_Bengaluru_Logo.svg.png' },
+    { id: 'KKR', name: 'Kolkata Knight Riders', color: '#2E0854', logoUrl: 'https://upload.wikimedia.org/wikipedia/en/thumb/4/4c/Kolkata_Knight_Riders_Logo.svg/1200px-Kolkata_Knight_Riders_Logo.svg.png' },
+    { id: 'DC', name: 'Delhi Capitals', color: '#00008B', logoUrl: 'https://upload.wikimedia.org/wikipedia/en/thumb/2/2f/Delhi_Capitals.svg/500px-Delhi_Capitals.svg.png' },
+    { id: 'PBKS', name: 'Punjab Kings', color: '#ED1B24', logoUrl: 'https://upload.wikimedia.org/wikipedia/en/thumb/d/d4/Punjab_Kings_Logo.svg/1200px-Punjab_Kings_Logo.svg.png' },
+    { id: 'RR', name: 'Rajasthan Royals', color: '#EA1A85', logoUrl: 'https://scores.iplt20.com/ipl/teamlogos/RR.png' },
+    { id: 'SRH', name: 'Sunrisers Hyderabad', color: '#FF822A', logoUrl: 'https://upload.wikimedia.org/wikipedia/en/thumb/5/51/Sunrisers_Hyderabad_Logo.svg/500px-Sunrisers_Hyderabad_Logo.svg.png' },
+    { id: 'LSG', name: 'Lucknow Super Giants', color: '#00D1FF', logoUrl: 'https://upload.wikimedia.org/wikipedia/en/thumb/a/a9/Lucknow_Super_Giants_IPL_Logo.svg/1200px-Lucknow_Super_Giants_IPL_Logo.svg.png' },
+    { id: 'GT', name: 'Gujarat Titans', color: '#1B2133', logoUrl: 'https://upload.wikimedia.org/wikipedia/en/thumb/0/09/Gujarat_Titans_Logo.svg/1200px-Gujarat_Titans_Logo.svg.png' },
+    { id: 'DCG', name: 'Deccan Chargers', color: '#D1E1EF', logoUrl: 'https://upload.wikimedia.org/wikipedia/en/a/a6/HyderabadDeccanChargers.png' },
+    { id: 'KTK', name: 'Kochi Tuskers Kerala', color: '#F15A24', logoUrl: 'https://upload.wikimedia.org/wikipedia/en/thumb/9/96/Kochi_Tuskers_Kerala_Logo.svg/500px-Kochi_Tuskers_Kerala_Logo.svg.png' },
+    { id: 'PWI', name: 'Pune Warriors India', color: '#40E0D0', logoUrl: 'https://upload.wikimedia.org/wikipedia/en/4/4a/Pune_Warriors_India_IPL_Logo.png' },
+    { id: 'RPS', name: 'Rising Pune Supergiant', color: '#D11D70', logoUrl: 'https://upload.wikimedia.org/wikipedia/en/9/9a/Rising_Pune_Supergiant.png' },
+    { id: 'GL', name: 'Gujarat Lions', color: '#E04F16', logoUrl: 'https://upload.wikimedia.org/wikipedia/en/c/c4/Gujarat_Lions.png' },
 ]; // 15 teams
 
 // In-memory state for timers to avoid DB writes for every second
@@ -68,7 +68,8 @@ const setupSocketHandlers = (io) => {
                     teams: [], // Empty initially, host must claim team from lobby
                     availableTeams: JSON.parse(JSON.stringify(dbFranchises)), // Deep copy so teams aren't globally removed
                     currentBid: { amount: 0, teamId: null, teamName: null },
-                    timer: 10
+                    timer: 0, // Initialize to 0, start_auction/loadNextPlayer will set it
+                    timerDuration: 10 // Default 10 seconds
                 };
 
                 socket.emit('room_created', { roomCode, state: roomStates[roomCode] });
@@ -178,8 +179,8 @@ const setupSocketHandlers = (io) => {
 
             // Accept bid
             state.currentBid = { amount, teamId: team.franchiseId, teamName: team.teamName, teamColor: team.teamThemeColor, teamLogo: team.teamLogo, ownerName: team.ownerName };
-            state.timerEndsAt = Date.now() + 10000;
-            state.timer = 10; // Reset timer
+            state.timerEndsAt = Date.now() + (state.timerDuration * 1000);
+            state.timer = state.timerDuration; // Reset timer
 
             io.to(roomCode).emit('bid_placed', {
                 currentBid: state.currentBid,
@@ -244,11 +245,17 @@ const setupSocketHandlers = (io) => {
             state.status = 'Auctioning';
 
             // Re-sync timer Ends At based on how much time was remaining
-            state.timerEndsAt = Date.now() + (state.timer * 1000);
+            if (state.timer > 0 && state.currentIndex < state.players.length) {
+                state.timerEndsAt = Date.now() + (state.timer * 1000);
 
-            roomTimers[roomCode] = setInterval(() => {
-                tickTimer(roomCode, io);
-            }, 500);
+                if (roomTimers[roomCode]) clearInterval(roomTimers[roomCode]);
+                roomTimers[roomCode] = setInterval(() => {
+                    tickTimer(roomCode, io);
+                }, 500);
+            } else {
+                // We were stuck in a transition or at the very beginning
+                loadNextPlayer(roomCode, io);
+            }
 
             io.to(roomCode).emit('auction_resumed', { state });
         });
@@ -260,6 +267,66 @@ const setupSocketHandlers = (io) => {
             endAuction(roomCode, io);
         });
 
+        // Update Room Settings (Host Only)
+        socket.on('update_settings', ({ roomCode, timerDuration }) => {
+            const state = roomStates[roomCode];
+            if (!state || state.host !== socket.id) return;
+
+            if ([5, 10, 15, 20].includes(timerDuration)) {
+                state.timerDuration = timerDuration;
+                io.to(roomCode).emit('settings_updated', { timerDuration: state.timerDuration });
+                console.log(`Room ${roomCode} settings updated: timerDuration = ${timerDuration}s`);
+            }
+        });
+
+        // Selection Phase Handlers
+        socket.on('manual_select_playing_15', async ({ roomCode, playerIds }) => {
+            const state = roomStates[roomCode];
+            if (!state || state.status !== 'Selection') return;
+
+            const teamIndex = state.teams.findIndex(t => t.ownerSocketId === socket.id);
+            if (teamIndex === -1) return;
+
+            state.teams[teamIndex].playing15 = playerIds;
+            socket.emit('selection_confirmed', { playing15: playerIds });
+
+            // Check if all teams are done
+            const allDone = state.teams.every(t => t.playing15 && t.playing15.length >= 15);
+            if (allDone) {
+                finalizeResults(roomCode, io);
+            }
+        });
+
+        socket.on('auto_select_playing_15', async ({ roomCode }) => {
+            const state = roomStates[roomCode];
+            if (!state || state.status !== 'Selection') return;
+
+            const teamIndex = state.teams.findIndex(t => t.ownerSocketId === socket.id);
+            if (teamIndex === -1) return;
+
+            const team = state.teams[teamIndex];
+            const { selectTop15 } = require('../services/aiRating');
+
+            // Need full player data for AI
+            const Player = require('../models/Player');
+            if (!team.playersAcquired) return;
+
+            const playersWithData = await Promise.all(team.playersAcquired.map(async (p) => {
+                const data = await Player.findById(p.player);
+                return { ...p, player: data };
+            }));
+
+            const selectedIds = await selectTop15(team.teamName, playersWithData);
+            state.teams[teamIndex].playing15 = selectedIds;
+
+            socket.emit('selection_confirmed', { playing15: selectedIds });
+
+            const allDone = state.teams.every(t => t.playing15 && t.playing15.length >= 15);
+            if (allDone) {
+                finalizeResults(roomCode, io);
+            }
+        });
+
         socket.on('disconnect', () => {
             console.log(`User disconnected: ${socket.id}`);
         });
@@ -269,7 +336,7 @@ const setupSocketHandlers = (io) => {
 
 function loadNextPlayer(roomCode, io) {
     const state = roomStates[roomCode];
-    if (!state) return;
+    if (!state || state.status !== 'Auctioning') return;
 
     if (state.currentIndex >= state.players.length) {
         endAuction(roomCode, io);
@@ -277,11 +344,13 @@ function loadNextPlayer(roomCode, io) {
     }
 
     const player = state.players[state.currentIndex];
-    state.currentBid = { amount: 0, teamId: null, teamName: null, teamColor: null, teamLogo: null, ownerName: null };
-    state.timerEndsAt = Date.now() + 10000;
-    state.timer = 10;
+    const nextPlayers = state.players.slice(state.currentIndex + 1, state.currentIndex + 11);
 
-    io.to(roomCode).emit('new_player', { player, timer: state.timer });
+    state.currentBid = { amount: 0, teamId: null, teamName: null, teamColor: null, teamLogo: null, ownerName: null };
+    state.timerEndsAt = Date.now() + (state.timerDuration * 1000);
+    state.timer = state.timerDuration;
+
+    io.to(roomCode).emit('new_player', { player, nextPlayers, timer: state.timer });
 
     if (roomTimers[roomCode]) clearInterval(roomTimers[roomCode]);
 
@@ -292,7 +361,7 @@ function loadNextPlayer(roomCode, io) {
 
 function tickTimer(roomCode, io) {
     const state = roomStates[roomCode];
-    if (!state) {
+    if (!state || state.status !== 'Auctioning') {
         if (roomTimers[roomCode]) clearInterval(roomTimers[roomCode]);
         return;
     }
@@ -316,6 +385,8 @@ async function processHammerDown(roomCode, io) {
     const player = state.players[state.currentIndex];
     const AuctionTransaction = require('../models/AuctionTransaction');
 
+    const playerName = player.player || player.name || 'Unknown Player';
+
     if (state.currentBid.amount > 0) {
         // Player Sold
         const winningTeamIndex = state.teams.findIndex(t => t.franchiseId === state.currentBid.teamId);
@@ -325,13 +396,31 @@ async function processHammerDown(roomCode, io) {
             state.teams[winningTeamIndex].currentPurse -= state.currentBid.amount;
             state.teams[winningTeamIndex].playersAcquired.push({
                 player: player._id,
+                name: playerName,
                 boughtFor: state.currentBid.amount
             });
             winningSocketId = state.teams[winningTeamIndex].ownerSocketId;
         }
 
+        // --- Structured JSON Logging for Backend ---
+        const soldData = {
+            event: "PLAYER_SOLD",
+            timestamp: new Date().toISOString(),
+            player: {
+                id: player._id,
+                name: playerName,
+                basePrice: player.basePrice
+            },
+            winningBid: {
+                amount: state.currentBid.amount,
+                team: state.currentBid.teamName,
+                owner: state.currentBid.ownerName
+            }
+        };
+        console.log(JSON.stringify(soldData, null, 2));
+
         io.to(roomCode).emit('player_sold', {
-            player,
+            player: { ...player.toObject(), name: playerName },
             winningBid: state.currentBid,
             teams: state.teams
         });
@@ -356,6 +445,14 @@ async function processHammerDown(roomCode, io) {
                 $set: { franchisesInRoom: state.teams, currentPlayerIndex: state.currentIndex + 1 },
                 $pull: { unsoldPlayers: player._id }
             });
+
+            // CHECK: Auto-stop if every team has 25 players
+            const ALL_SQUADS_FULL = state.teams.every(t => t.playersAcquired.length >= 25);
+            if (ALL_SQUADS_FULL) {
+                console.log(`\n--- ALL SQUADS FULL (25 players each) in Room ${roomCode} ---`);
+                endAuction(roomCode, io);
+                return; // Stop further processing for this player
+            }
         } catch (err) {
             console.error("Critical DB Persistence Error on SOLD:", err.message);
         }
@@ -386,11 +483,125 @@ async function processHammerDown(roomCode, io) {
     }, 3000);
 }
 
-function endAuction(roomCode, io) {
+async function endAuction(roomCode, io) {
     const state = roomStates[roomCode];
+    if (!state) return;
+
+    // Transition to Selection Phase instead of Finished
+    state.status = 'Selection';
+    state.selectionTimer = 120; // 2 minutes
+    state.selectionTimerEndsAt = Date.now() + 120000;
+
+    console.log(`\n--- TRANSITIONING TO SELECTION PHASE FOR ROOM ${roomCode} ---`);
+
+    // Ensure 15 player minimum as before
+    const allSoldPlayerIds = state.teams.flatMap(t => t.playersAcquired.map(p => String(p.player)));
+    const remainingUnsold = state.players.filter(p => !allSoldPlayerIds.includes(String(p._id)));
+
+    // Emit transition to selection phase
+    io.to(roomCode).emit('auction_finished', { teams: state.teams, status: 'Selection' });
+
+    try {
+        await AuctionRoom.findOneAndUpdate({ roomId: roomCode }, {
+            status: 'Selection',
+            franchisesInRoom: state.teams
+        });
+    } catch (err) {
+        console.error("Error transitioning to selection:", err);
+    }
+
+    if (roomTimers[roomCode]) clearInterval(roomTimers[roomCode]);
+    roomTimers[roomCode] = setInterval(() => {
+        tickSelectionTimer(roomCode, io);
+    }, 1000);
+}
+
+function tickSelectionTimer(roomCode, io) {
+    const state = roomStates[roomCode];
+    if (!state || state.status !== 'Selection') {
+        if (roomTimers[roomCode]) {
+            clearInterval(roomTimers[roomCode]);
+            delete roomTimers[roomCode];
+        }
+        return;
+    }
+
+    const now = Date.now();
+    const remaining = Math.max(0, Math.ceil((state.selectionTimerEndsAt - now) / 1000));
+
+    // Only update and emit if the timer value actually changed
+    if (state.selectionTimer !== remaining) {
+        state.selectionTimer = remaining;
+        io.to(roomCode).emit('selection_timer_tick', { timer: state.selectionTimer });
+    }
+
+    if (state.selectionTimer <= 0) {
+        if (roomTimers[roomCode]) {
+            clearInterval(roomTimers[roomCode]);
+            delete roomTimers[roomCode];
+        }
+        finalizeResults(roomCode, io);
+    }
+}
+
+async function finalizeResults(roomCode, io) {
+    const state = roomStates[roomCode];
+    if (!state) return;
+
     state.status = 'Finished';
-    io.to(roomCode).emit('auction_finished', { teams: state.teams });
-    AuctionRoom.findOneAndUpdate({ roomId: roomCode }, { status: 'Finished' }).exec();
+
+    try {
+        const { evaluateAllTeams } = require('../services/aiRating');
+        const Player = require('../models/Player');
+
+        // 1. Prepare teams with full player data for AI
+        const teamsToEvaluate = await Promise.all(state.teams.map(async (team) => {
+            const playersWithData = await Promise.all(team.playersAcquired.map(async (p) => {
+                const data = await Player.findById(p.player).lean(); // Use lean() for plain JS object
+                return {
+                    name: data?.player || data?.name || p.name,
+                    role: data?.role,
+                    nationality: data?.nationality,
+                    boughtFor: p.boughtFor,
+                    stats: data?.stats || {}
+                };
+            }));
+
+            return {
+                teamName: team.teamName,
+                currentPurse: team.currentPurse,
+                playersAcquired: playersWithData,
+                playing15: team.playing15 || []
+            };
+        }));
+
+        // 2. Perform AI Evaluation (Unbiased & Persisted)
+        console.log(`--- EVALUATING TEAMS FOR ROOM ${roomCode} ---`);
+        const evaluatedResults = await evaluateAllTeams(teamsToEvaluate);
+
+        // 3. Merge results back into original state.teams to preserve all metadata
+        state.teams = state.teams.map(originalTeam => {
+            const evalResult = evaluatedResults.find(r => r.teamName === originalTeam.teamName);
+            return {
+                ...originalTeam,
+                evaluation: evalResult?.evaluation,
+                rank: evalResult?.rank
+            };
+        });
+
+        // 4. Persistence
+        await AuctionRoom.findOneAndUpdate({ roomId: roomCode }, {
+            status: 'Finished',
+            franchisesInRoom: state.teams
+        });
+
+        console.log(`--- PERSISTED RESULTS FOR ROOM ${roomCode} ---`);
+        io.to(roomCode).emit('results_ready');
+
+    } catch (err) {
+        console.error("Critical Error in finalizeResults:", err);
+        io.to(roomCode).emit('error', 'Failed to generate final results');
+    }
 
     delete roomTimers[roomCode];
 }

@@ -9,6 +9,22 @@ const ResultsReveal = () => {
     const [loading, setLoading] = useState(true);
     const [selectedTeam, setSelectedTeam] = useState(null);
     const [error, setError] = useState(null);
+    const [allPlayersMap, setAllPlayersMap] = useState({});
+
+    useEffect(() => {
+        // Fetch players to create a fallback name map
+        fetch('http://localhost:5050/api/players')
+            .then(res => res.json())
+            .then(data => {
+                const map = {};
+                data.forEach(p => {
+                    map[p._id] = p.player || p.name;
+                    if (p.playerId) map[p.playerId] = p.player || p.name;
+                });
+                setAllPlayersMap(map);
+            })
+            .catch(err => console.error("Failed to fetch players for map:", err));
+    }, []);
 
     useEffect(() => {
         const fetchResults = async () => {
@@ -84,12 +100,12 @@ const ResultsReveal = () => {
                     {/* Left: Team List */}
                     <div className="space-y-4">
                         <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Final Rankings</h3>
-                        {results.map((team, i) => (
+                        {results.map((team, index) => (
                             <motion.div
-                                key={team.teamId}
+                                key={team.teamId || team.teamName || index}
                                 initial={{ x: -50, opacity: 0 }}
                                 animate={{ x: 0, opacity: 1 }}
-                                transition={{ delay: i * 0.1 }}
+                                transition={{ delay: index * 0.1 }}
                                 onClick={() => setSelectedTeam(team)}
                                 className={`
                                     glass-card p-6 rounded-3xl border-white/5 cursor-pointer transition-all relative overflow-hidden group
@@ -131,7 +147,10 @@ const ResultsReveal = () => {
                                                 <h2 className="text-5xl font-black uppercase tracking-tighter italic">{selectedTeam.teamName}</h2>
                                             </div>
                                             <p className="text-slate-300 font-bold max-w-lg leading-relaxed text-sm">
-                                                {selectedTeam.evaluation?.summary}
+                                                {selectedTeam.evaluation?.tacticalVerdict || selectedTeam.evaluation?.summary}
+                                            </p>
+                                            <p className="text-blue-400/60 font-black text-[10px] uppercase tracking-widest mt-4">
+                                                {selectedTeam.evaluation?.historicalContext}
                                             </p>
                                         </div>
                                         <div className="flex flex-col items-center gap-4">
@@ -171,8 +190,8 @@ const ResultsReveal = () => {
                                             <div className="text-2xl font-black">{selectedTeam.evaluation?.balanceScore}</div>
                                         </div>
                                         <div className="glass-panel rounded-3xl p-4 border-white/5 text-center">
-                                            <div className="text-[9px] text-slate-400 font-black uppercase tracking-widest mb-1">Form</div>
-                                            <div className="text-2xl font-black">{selectedTeam.evaluation?.formScore}</div>
+                                            <div className="text-[9px] text-slate-400 font-black uppercase tracking-widest mb-1">Impact</div>
+                                            <div className="text-2xl font-black">{selectedTeam.evaluation?.impactScore || selectedTeam.evaluation?.formScore}</div>
                                         </div>
                                     </div>
 
@@ -184,21 +203,36 @@ const ResultsReveal = () => {
                                     {/* Squad List */}
                                     <div className="flex-1 overflow-y-auto custom-scrollbar pr-4">
                                         <div className="flex justify-between items-center mb-4">
-                                            <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Drafted Squad</h3>
+                                            <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Team Profile</h3>
                                             <div className="flex gap-4">
                                                 <div className="text-[10px] font-black text-yellow-500 uppercase tracking-widest bg-yellow-500/10 px-2 py-1 rounded">⭐ Star: {selectedTeam.evaluation?.starPlayer}</div>
-                                                <div className="text-[10px] font-black text-green-400 uppercase tracking-widest bg-green-400/10 px-2 py-1 rounded">💎 Steal: {selectedTeam.evaluation?.bestValuePick}</div>
+                                                <div className="text-[10px] font-black text-green-400 uppercase tracking-widest bg-green-400/10 px-2 py-1 rounded">💎 Gem: {selectedTeam.evaluation?.hiddenGem || selectedTeam.evaluation?.bestValuePick}</div>
                                             </div>
                                         </div>
+
+                                        {selectedTeam.evaluation?.playing11 && (
+                                            <div className="mb-8 p-6 bg-white/5 border border-white/10 rounded-3xl">
+                                                <h4 className="text-[10px] font-black text-blue-400 uppercase tracking-[0.3em] mb-4 text-center">AI Recommended Playing 11</h4>
+                                                <div className="flex flex-wrap justify-center gap-2">
+                                                    {selectedTeam.evaluation.playing11.map((name, idx) => (
+                                                        <span key={`${name}-${idx}`} className="bg-blue-600/20 text-blue-300 px-3 py-1 rounded-full text-[10px] font-black border border-blue-500/20 uppercase tracking-widest">
+                                                            {name}
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-4">Full Squad</h3>
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                                             {selectedTeam.playersAcquired.map((entry, idx) => (
-                                                <div key={idx} className="glass-panel p-3 rounded-2xl border-white/5 flex items-center justify-between">
+                                                <div key={entry.player?._id || entry.player || idx} className="glass-panel p-3 rounded-2xl border-white/5 flex items-center justify-between">
                                                     <div className="flex items-center gap-3">
                                                         <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center font-black text-[10px] text-slate-500">
                                                             {idx + 1}
                                                         </div>
                                                         <div className="text-sm font-bold text-white truncate max-w-[150px]">
-                                                            {entry.player?.name || "Unknown Player"}
+                                                            {entry.name || (entry.player && allPlayersMap[entry.player]) || (entry.player?.name) || (allPlayersMap[entry.player?._id]) || "Unknown Player"}
                                                         </div>
                                                     </div>
                                                     <div className="text-xs font-mono font-black text-slate-400">₹{entry.boughtFor}L</div>
