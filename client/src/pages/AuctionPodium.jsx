@@ -301,9 +301,10 @@ const AuctionPodium = () => {
                     <div className="absolute top-8 right-8 z-30 flex items-center gap-4">
                         <button
                             onClick={() => socket.emit(isPaused ? 'resume_auction' : 'pause_auction', { roomCode })}
-                            className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${isPaused ? 'bg-green-600 hover:bg-green-500 text-white shadow-[0_0_15px_rgba(34,197,94,0.4)]' : 'bg-yellow-600/30 hover:bg-yellow-500/40 text-yellow-500 border border-yellow-500/50 backdrop-blur-md'}`}
+                            className={`px-4 py-2 rounded-xl transition-all flex items-center justify-center min-w-[48px] ${isPaused ? 'bg-green-600 hover:bg-green-500 text-white shadow-[0_0_15px_rgba(34,197,94,0.4)]' : 'bg-yellow-600/30 hover:bg-yellow-500/40 text-yellow-500 border border-yellow-500/50 backdrop-blur-md'}`}
+                            title={isPaused ? "Resume Auction" : "Pause Auction"}
                         >
-                            {isPaused ? '▶ Resume Auction' : '⏸ Pause Auction'}
+                            <span className="text-xl leading-none">{isPaused ? '▶️' : '⏸️'}</span>
                         </button>
                         <button
                             onClick={() => {
@@ -311,9 +312,11 @@ const AuctionPodium = () => {
                                     socket.emit('force_end_auction', { roomCode });
                                 }
                             }}
-                            className="px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all bg-red-600/30 hover:bg-red-500/40 text-red-500 border border-red-500/50 backdrop-blur-md"
+                            className="px-4 py-2 rounded-xl transition-all bg-red-600/30 hover:bg-red-500/40 text-red-500 border border-red-500/50 backdrop-blur-md flex items-center justify-center min-w-[48px]"
+                            title="Force End Auction"
                         >
-                            Force End
+                            <span className="text-xl leading-none">⏹️</span>
+
                         </button>
                     </div>
                 )}
