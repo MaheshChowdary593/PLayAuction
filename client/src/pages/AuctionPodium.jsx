@@ -285,8 +285,54 @@ const AuctionPodium = () => {
             {/* Main Auction Arena */}
             <div className="flex-1 flex flex-col relative overflow-hidden">
 
-                {/* Lobby Info Header */}
-                <div className="absolute top-8 left-1/2 -translate-x-1/2 flex items-center gap-4 z-20">
+                {/* Premium Live Auction Ticker (Moved to Top) */}
+                <div className="absolute top-0 left-0 right-0 h-8 bg-black/60 backdrop-blur-md border-b border-white/10 z-[100] flex items-center overflow-hidden">
+                    <div className="bg-blue-600 h-full px-4 flex items-center justify-center z-10 shadow-[5px_0_15px_rgba(0,0,0,0.5)]">
+                        <span className="text-[9px] font-black uppercase tracking-[0.2em] whitespace-nowrap text-white">Live Highlights</span>
+                    </div>
+
+                    <div className="flex-1 relative overflow-hidden h-full flex items-center">
+                        <div className="flex whitespace-nowrap animate-ticker group-hover:pause">
+                            {/* Secondary copy for seamless loop */}
+                            {[...Array(2)].map((_, loopIdx) => (
+                                <React.Fragment key={`loop-${loopIdx}`}>
+                                    {/* Recent Buys */}
+                                    {recentSold.map((s, i) => (
+                                        <div key={`recent-${loopIdx}-${i}`} className="inline-flex items-center mx-8">
+                                            <span className="text-[8px] font-black text-blue-400 uppercase tracking-widest mr-2">RECENT:</span>
+                                            <span className="text-[10px] font-bold text-white uppercase">{s.name}</span>
+                                            <span className="mx-2 text-slate-500">→</span>
+                                            <span className="text-[10px] font-black text-yellow-500 uppercase">{s.team}</span>
+                                            <span className="ml-2 text-[10px] font-mono font-black text-white/50">₹{s.price}L</span>
+                                        </div>
+                                    ))}
+
+                                    {/* Top Buys */}
+                                    {activeTeams.flatMap(t => t.playersAcquired.map(p => ({ ...p, team: t.teamName })))
+                                        .sort((a, b) => b.boughtFor - a.boughtFor)
+                                        .slice(0, 10)
+                                        .map((s, i) => (
+                                            <div key={`top-${loopIdx}-${i}`} className="inline-flex items-center mx-8">
+                                                <span className="text-[8px] font-black text-purple-400 uppercase tracking-widest mr-2">TOP BUY:</span>
+                                                <span className="text-[10px] font-bold text-white uppercase">{s.name}</span>
+                                                <span className="mx-2 text-slate-500">→</span>
+                                                <span className="text-[10px] font-black text-blue-400 uppercase">{s.team}</span>
+                                                <span className="ml-2 text-[10px] font-mono font-black text-white/50">₹{s.boughtFor}L</span>
+                                            </div>
+                                        ))}
+                                </React.Fragment>
+                            ))}
+
+                            {/* Decorative Spacer */}
+                            {recentSold.length === 0 && activeTeams.length === 0 && (
+                                <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest mx-10">Waiting for first hammers...</span>
+                            )}
+                        </div>
+                    </div>
+                </div>
+
+                {/* Lobby Info Header - Pushed down slightly below marquee */}
+                <div className="absolute top-12 left-1/2 -translate-x-1/2 flex items-center gap-4 z-20">
                     <div className="px-4 py-1.5 rounded-full border border-white/10 glass-panel text-[10px] font-black uppercase tracking-widest text-slate-400">
                         Room: {roomCode}
                     </div>
@@ -296,9 +342,9 @@ const AuctionPodium = () => {
                     </div>
                 </div>
 
-                {/* Host Controls */}
+                {/* Host Controls - Pushed down slightly below marquee */}
                 {myTeam && myTeam.ownerSocketId === gameState?.host && (
-                    <div className="absolute top-8 right-8 z-30 flex items-center gap-4">
+                    <div className="absolute top-12 right-8 z-30 flex items-center gap-4">
                         <button
                             onClick={() => socket.emit(isPaused ? 'resume_auction' : 'pause_auction', { roomCode })}
                             className={`px-4 py-2 rounded-xl transition-all flex items-center justify-center min-w-[48px] ${isPaused ? 'bg-green-600 hover:bg-green-500 text-white shadow-[0_0_15px_rgba(34,197,94,0.4)]' : 'bg-yellow-600/30 hover:bg-yellow-500/40 text-yellow-500 border border-yellow-500/50 backdrop-blur-md'}`}
@@ -689,51 +735,7 @@ const AuctionPodium = () => {
                 </div>
             </div>
 
-            {/* Premium Live Auction Ticker */}
-            <div className="fixed bottom-0 left-0 right-0 h-10 bg-black/80 backdrop-blur-md border-t border-white/10 z-[100] flex items-center overflow-hidden">
-                <div className="bg-blue-600 h-full px-4 flex items-center justify-center z-10 shadow-[5px_0_15px_rgba(0,0,0,0.5)]">
-                    <span className="text-[10px] font-black uppercase tracking-[0.2em] whitespace-nowrap text-white">Live Highlights</span>
-                </div>
 
-                <div className="flex-1 relative overflow-hidden h-full flex items-center">
-                    <div className="flex whitespace-nowrap animate-ticker group-hover:pause">
-                        {/* Secondary copy for seamless loop */}
-                        {[...Array(2)].map((_, loopIdx) => (
-                            <React.Fragment key={`loop-${loopIdx}`}>
-                                {/* Recent Buys */}
-                                {recentSold.map((s, i) => (
-                                    <div key={`recent-${loopIdx}-${i}`} className="inline-flex items-center mx-8">
-                                        <span className="text-[8px] font-black text-blue-400 uppercase tracking-widest mr-2">RECENT:</span>
-                                        <span className="text-xs font-bold text-white uppercase">{s.name}</span>
-                                        <span className="mx-2 text-slate-500">→</span>
-                                        <span className="text-xs font-black text-yellow-500 uppercase">{s.team}</span>
-                                        <span className="ml-2 text-[10px] font-mono font-black text-white/50">₹{s.price}L</span>
-                                    </div>
-                                ))}
-
-                                {/* Top Buys */}
-                                {activeTeams.flatMap(t => t.playersAcquired.map(p => ({ ...p, team: t.teamName })))
-                                    .sort((a, b) => b.boughtFor - a.boughtFor)
-                                    .slice(0, 10)
-                                    .map((s, i) => (
-                                        <div key={`top-${loopIdx}-${i}`} className="inline-flex items-center mx-8">
-                                            <span className="text-[8px] font-black text-purple-400 uppercase tracking-widest mr-2">TOP BUY:</span>
-                                            <span className="text-xs font-bold text-white uppercase">{s.name}</span>
-                                            <span className="mx-2 text-slate-500">→</span>
-                                            <span className="text-xs font-black text-blue-400 uppercase">{s.team}</span>
-                                            <span className="ml-2 text-[10px] font-mono font-black text-white/50">₹{s.boughtFor}L</span>
-                                        </div>
-                                    ))}
-                            </React.Fragment>
-                        ))}
-
-                        {/* Decorative Spacer */}
-                        {recentSold.length === 0 && activeTeams.length === 0 && (
-                            <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest mx-10">Waiting for first hammers...</span>
-                        )}
-                    </div>
-                </div>
-            </div>
 
             <style dangerouslySetInnerHTML={{
                 __html: `
