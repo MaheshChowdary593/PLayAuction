@@ -46,6 +46,16 @@ const AuctionPodium = () => {
     const [bidHistory, setBidHistory] = useState([]);
     const [expandedTeamId, setExpandedTeamId] = useState(null);
 
+    // Chat State
+    const [chatMessages, setChatMessages] = useState([]);
+    const [chatInput, setChatInput] = useState("");
+    const chatEndRef = useRef(null);
+
+    // Scroll chat to bottom when new messages arrive
+    useEffect(() => {
+        chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }, [chatMessages]);
+
     // 3D Card Tilt Logic
     const x = useMotionValue(0);
     const y = useMotionValue(0);
@@ -166,6 +176,10 @@ const AuctionPodium = () => {
         socket.on('auction_resumed', () => setIsPaused(false));
         socket.on('kicked_from_room', () => navigate('/'));
 
+        socket.on('receive_chat_message', (msg) => {
+            setChatMessages(prev => [...prev, msg]);
+        });
+
         return () => {
             socket.off('new_player');
             socket.off('timer_tick');
@@ -176,6 +190,7 @@ const AuctionPodium = () => {
             socket.off('auction_paused');
             socket.off('auction_resumed');
             socket.off('kicked_from_room');
+            socket.off('receive_chat_message');
         }
     }, [socket, gameState, navigate, roomCode]);
 
@@ -192,6 +207,13 @@ const AuctionPodium = () => {
     const handleBid = () => {
         if (!myTeam || timer <= 0 || soldEvent || isPaused) return;
         socket.emit('place_bid', { roomCode, amount: targetAmount });
+    };
+
+    const handleSendMessage = (e) => {
+        e.preventDefault();
+        if (!chatInput.trim()) return;
+        socket.emit('send_chat_message', { roomCode, message: chatInput.trim() });
+        setChatInput("");
     };
 
     const ringRadius = 45;
@@ -673,70 +695,123 @@ const AuctionPodium = () => {
                 {/* Fullscreen Overlay Removed, Stamp injected in Timer container */}
             </div>
 
-            {/* Right Sidebar: Activity Feed */}
-            <div className="w-80 glass-panel border-l border-white/5 flex flex-col pt-8 relative z-10">
-                <div className="px-6 mb-6 flex items-center justify-between">
-                    <div>
-                        <h2 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] mb-1">Auction History</h2>
-                        <div className="h-0.5 w-10 bg-white/10"></div>
+            {/* Right Sidebar: Split Activity Feed & Chat */}
+            <div className="w-80 glass-panel border-l border-white/5 flex flex-col relative z-10">
+
+                {/* Top Half: Auction History */}
+                <div className="flex-1 flex flex-col pt-8 min-h-0 border-b border-white/10">
+                    <div className="px-6 mb-4 flex items-center justify-between">
+                        <div>
+                            <h2 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] mb-1">Auction History</h2>
+                            <div className="h-0.5 w-10 bg-white/10"></div>
+                        </div>
+                        <div className="w-2 h-2 rounded-full bg-blue-500 animate-ping"></div>
                     </div>
-                    <div className="w-2 h-2 rounded-full bg-blue-500 animate-ping"></div>
-                </div>
-                <div className="flex-1 overflow-y-auto px-4 pb-8 flex flex-col-reverse gap-3 custom-scrollbar">
-                    <div className="flex flex-col-reverse gap-4">
-                        {bidHistory.map((bid) => (
-                            <div
-                                key={bid.id}
-                                className="relative group ml-4 mr-2"
-                            >
-                                {/* Rhombus Outer Wrapper */}
-                                <div className="bg-slate-900/60 border border-white/10 p-3 transform skew-x-[-15deg] shadow-[0_5px_15px_rgba(0,0,0,0.3)] relative overflow-hidden flex items-center gap-4">
-
-                                    {/* Un-skew Inner Content */}
-                                    <div className="transform skew-x-[15deg] flex items-center w-full min-w-0">
-
-                                        {/* Logo Container */}
-                                        <div className="w-10 h-10 shrink-0 bg-black/40 rounded-full flex items-center justify-center p-1 border border-white/10 mr-4 shadow-inner">
-                                            {bid.teamLogo ? (
-                                                <img src={bid.teamLogo} alt={bid.teamName} className="w-full h-full object-contain drop-shadow-md" />
-                                            ) : (
-                                                <span className="text-[10px] font-black text-white">{bid.teamName.charAt(0)}</span>
-                                            )}
+                    <div className="flex-1 overflow-y-auto px-4 pb-4 flex flex-col-reverse gap-3 custom-scrollbar">
+                        <div className="flex flex-col-reverse gap-3">
+                            {bidHistory.map((bid) => (
+                                <div key={bid.id} className="relative group ml-4 mr-2">
+                                    <div className="bg-slate-900/60 border border-white/10 p-2 transform skew-x-[-15deg] shadow-[0_5px_15px_rgba(0,0,0,0.3)] relative overflow-hidden flex items-center gap-3">
+                                        <div className="transform skew-x-[15deg] flex items-center w-full min-w-0">
+                                            <div className="w-8 h-8 shrink-0 bg-black/40 rounded-full flex items-center justify-center p-1 border border-white/10 mr-3 shadow-inner">
+                                                {bid.teamLogo ? (
+                                                    <img src={bid.teamLogo} alt={bid.teamName} className="w-full h-full object-contain drop-shadow-md" />
+                                                ) : (
+                                                    <span className="text-[10px] font-black text-white">{bid.teamName.charAt(0)}</span>
+                                                )}
+                                            </div>
+                                            <div className="flex-1 min-w-0 flex flex-col justify-center">
+                                                <div className="flex justify-between items-start mb-0.5">
+                                                    <div className="text-[9px] font-black uppercase tracking-widest truncate max-w-[100px]" style={{ color: bid.teamColor }}>
+                                                        {bid.teamName}
+                                                    </div>
+                                                    <div className="text-[8px] text-slate-500 font-bold bg-black/40 px-1 rounded ml-1 shrink-0">
+                                                        {bid.time}
+                                                    </div>
+                                                </div>
+                                                <div className="flex justify-between items-end">
+                                                    <div className="text-[8px] font-bold text-slate-400 uppercase tracking-widest truncate max-w-[80px]">
+                                                        {bid.ownerName}
+                                                    </div>
+                                                    <div className="text-sm font-black font-mono text-white tracking-tighter">
+                                                        ₹{bid.amount}L
+                                                    </div>
+                                                </div>
+                                            </div>
                                         </div>
+                                        <div className="absolute left-0 top-0 bottom-0 w-1" style={{ backgroundColor: bid.teamColor }}></div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                        {bidHistory.length === 0 && (
+                            <div className="flex-1 flex flex-col items-center justify-center text-slate-700">
+                                <div className="text-[10px] font-black uppercase tracking-widest">Awaiting Bids</div>
+                            </div>
+                        )}
+                    </div>
+                </div>
 
-                                        {/* Details */}
-                                        <div className="flex-1 min-w-0 flex flex-col justify-center">
-                                            <div className="flex justify-between items-start mb-1">
-                                                <div className="text-[10px] font-black uppercase tracking-widest truncate max-w-[120px]" style={{ color: bid.teamColor }}>
-                                                    {bid.teamName}
-                                                </div>
-                                                <div className="text-[8px] text-slate-500 font-bold tracking-widest bg-black/40 px-1.5 py-0.5 rounded ml-2 shrink-0">
-                                                    {bid.time}
-                                                </div>
-                                            </div>
+                {/* Bottom Half: Room Chat */}
+                <div className="flex-1 flex flex-col min-h-0 bg-slate-900/50">
+                    <div className="px-6 py-4 flex items-center justify-between border-b border-white/5 bg-black/20">
+                        <div>
+                            <h2 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em]">Room Chat</h2>
+                        </div>
+                    </div>
 
-                                            <div className="flex justify-between items-end">
-                                                <div className="text-[9px] font-bold text-slate-400 uppercase tracking-widest truncate max-w-[100px]">
-                                                    {bid.ownerName}
-                                                </div>
-                                                <div className="text-lg font-black font-mono text-white tracking-tighter drop-shadow-[0_0_8px_rgba(255,255,255,0.2)]">
-                                                    ₹{bid.amount}L
-                                                </div>
-                                            </div>
+                    {/* Chat Messages */}
+                    <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar">
+                        {chatMessages.length === 0 ? (
+                            <div className="h-full flex items-center justify-center text-slate-600 text-[10px] font-bold uppercase tracking-widest text-center px-4">
+                                Send a message to the room
+                            </div>
+                        ) : (
+                            chatMessages.map((msg) => {
+                                const isMe = msg.senderName === (myTeam?.ownerName || 'Host') && msg.senderTeam === (myTeam?.teamName || 'System');
+                                return (
+                                    <div key={msg.id} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
+                                        <div className="flex items-baseline gap-2 mb-1 px-1">
+                                            <span className="text-[9px] font-black uppercase tracking-widest" style={{ color: isMe ? '#ffffff' : msg.senderColor }}>
+                                                {msg.senderName}
+                                            </span>
+                                            <span className="text-[8px] text-slate-500 font-bold">{msg.timestamp}</span>
+                                        </div>
+                                        <div
+                                            className={`max-w-[85%] px-3 py-2 rounded-2xl text-[11px] font-medium leading-relaxed
+                                                ${isMe ? 'bg-blue-600 text-white rounded-tr-sm' : 'bg-white/10 text-slate-200 rounded-tl-sm border border-white/5'}
+                                            `}
+                                        >
+                                            {msg.message}
                                         </div>
                                     </div>
-
-                                    {/* Left color accent */}
-                                    <div className="absolute left-0 top-0 bottom-0 w-1.5" style={{ backgroundColor: bid.teamColor }}></div>
-                                </div>
-                            </div>
-                        ))}
+                                );
+                            })
+                        )}
+                        <div ref={chatEndRef} />
                     </div>
-                    {bidHistory.length === 0 && (
-                        <div className="flex-1 flex flex-col items-center justify-center text-slate-700">
-                            <div className="text-xs font-black uppercase tracking-widest">Awaiting Bids</div>
-                        </div>
-                    )}
+
+                    {/* Chat Input Area */}
+                    <div className="p-3 border-t border-white/5 bg-black/40">
+                        <form onSubmit={handleSendMessage} className="flex items-center gap-2">
+                            <input
+                                type="text"
+                                value={chatInput}
+                                onChange={(e) => setChatInput(e.target.value)}
+                                placeholder="Type a message..."
+                                className="flex-1 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder:text-slate-600 focus:outline-none focus:border-blue-500/50 transition-colors"
+                            />
+                            <button
+                                type="submit"
+                                disabled={!chatInput.trim()}
+                                className="w-8 h-8 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:hover:bg-blue-600 flex items-center justify-center transition-colors shrink-0"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4 text-white ml-0.5">
+                                    <path d="M3.478 2.404a.75.75 0 00-.926.941l2.432 7.905H13.5a.75.75 0 010 1.5H4.984l-2.432 7.905a.75.75 0 00.926.94 60.519 60.519 0 0018.445-8.986.75.75 0 000-1.218A60.517 60.517 0 003.478 2.404z" />
+                                </svg>
+                            </button>
+                        </form>
+                    </div>
                 </div>
             </div>
 

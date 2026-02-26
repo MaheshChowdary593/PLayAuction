@@ -230,6 +230,27 @@ const setupSocketHandlers = (io) => {
             });
         });
 
+        // --- CHAT SYSTEM ---
+        socket.on('send_chat_message', ({ roomCode, message }) => {
+            const state = roomStates[roomCode];
+            if (!state) return;
+
+            // Find who sent it
+            const team = state.teams.find(t => t.ownerSocketId === socket.id);
+            const senderName = team ? team.ownerName : 'Host';
+            const senderTeam = team ? team.teamName : 'System';
+            const senderColor = team ? team.teamThemeColor : '#ffffff';
+
+            io.to(roomCode).emit('receive_chat_message', {
+                id: Date.now() + Math.random(),
+                senderName,
+                senderTeam,
+                senderColor,
+                message,
+                timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            });
+        });
+
         // --- HOST MODERATION CONTROLS ---
 
         // Kick Player
