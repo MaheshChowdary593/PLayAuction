@@ -149,6 +149,11 @@ const setupSocketHandlers = (io) => {
             if (!state) return;
             if (state.host !== socket.id) return socket.emit('error', 'Only host can start');
 
+            // Prevent starting auction when nobody has claimed a franchise
+            if (!state.teams || state.teams.length === 0) {
+                return socket.emit('error', 'At least one team must claim a franchise before auction can begin');
+            }
+
             state.status = 'Auctioning';
             io.to(roomCode).emit('auction_started', { state });
 
@@ -447,7 +452,9 @@ async function processHammerDown(roomCode, io) {
             });
 
             // CHECK: Auto-stop if every team has 25 players
-            const ALL_SQUADS_FULL = state.teams.every(t => t.playersAcquired.length >= 25);
+            // ensure there is at least one team before treating this as "full" otherwise
+            // an empty array would return true and immediately transition to selection
+            const ALL_SQUADS_FULL = state.teams.length > 0 && state.teams.every(t => t.playersAcquired.length >= 25);
             if (ALL_SQUADS_FULL) {
                 console.log(`\n--- ALL SQUADS FULL (25 players each) in Room ${roomCode} ---`);
                 endAuction(roomCode, io);
