@@ -23,7 +23,7 @@ const IPL_TEAMS = [
 
 const Lobby = () => {
     const [selectedTeamId, setSelectedTeamId] = useState('');
-    const [playerName, setPlayerName] = useState('');
+    const [playerName, setPlayerName] = useState(localStorage.getItem('playerName') || '');
     const [roomCodeInput, setRoomCodeInput] = useState('');
     const [isJoined, setIsJoined] = useState(false);
     const [roomState, setRoomState] = useState(null);
@@ -90,6 +90,12 @@ const Lobby = () => {
             socket.off('kicked_from_room');
         };
     }, [socket, navigate]);
+
+    useEffect(() => {
+        if (playerName) {
+            localStorage.setItem('playerName', playerName);
+        }
+    }, [playerName]);
 
     const handleCreate = () => {
         if (!playerName) return setError('Please enter your name');

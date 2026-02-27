@@ -5,39 +5,10 @@ const Franchise = require('../models/Franchise');
 const AuctionTransaction = require('../models/AuctionTransaction');
 const mongoose = require('mongoose');
 
-const POOLS = ['pool0', 'pool01', 'pool1', 'pool2', 'pool3', 'pool4', 'pool5'];
-
-async function fetchAllPools() {
-    const db = mongoose.connection.db;
-    let allPlayers = [];
-
-    for (const pool of POOLS) {
-        const poolPlayers = await db.collection(pool).find().toArray();
-        const normalized = poolPlayers.map(p => ({
-            _id: p._id,
-            name: p.player || p.name,
-            player: p.player || p.name,
-            role: p.role,
-            nationality: p.nationality || 'India',
-            isOverseas: (p.nationality && p.nationality.toLowerCase() !== 'india'),
-            basePrice: p.basePrice || 50,
-            image_path: p.image_path || p.imagepath,
-            stats: {
-                matches: p.matches || 0,
-                runs: p.runs || 0,
-                wickets: p.wickets || 0,
-                battingAvg: p.batting_avg || 0,
-                bowlingAvg: p.bowling_avg || 0,
-                strikeRate: p.batting_strike_rate || 0,
-                economy: p.bowling_economy || 0,
-                stumpings: p.stumpings || 0,
-                catches: p.catches || 0,
-                iplSeasonsActive: p.iplSeasonsActive || 0
-            }
-        }));
-        allPlayers = [...allPlayers, ...normalized];
-    }
-    return allPlayers;
+async function fetchAllPlayers() {
+    // Fetch from the correctly seeded Player collection (new_enhanced)
+    // Sorting by createdAt to maintain the sequencial order of pools
+    return await Player.find().sort({ createdAt: 1 }).lean();
 }
 
 const IPL_TEAMS = [
@@ -76,7 +47,7 @@ const setupSocketHandlers = (io) => {
                 const roomCode = generateRoomCode();
 
                 // Fetch players from all pools and maintain pool order
-                const players = await fetchAllPools();
+                const players = await fetchAllPlayers();
                 const playerIds = players.map(p => p._id);
 
                 // Fetch all 15 authentic IPL franchises
@@ -98,6 +69,7 @@ const setupSocketHandlers = (io) => {
                 roomStates[roomCode] = {
                     roomCode,
                     host: socket.id,
+                    hostName: playerName,
                     status: 'Lobby',
                     players: players,
                     currentIndex: 0,
@@ -105,7 +77,8 @@ const setupSocketHandlers = (io) => {
                     availableTeams: JSON.parse(JSON.stringify(dbFranchises)), // Deep copy so teams aren't globally removed
                     currentBid: { amount: 0, teamId: null, teamName: null },
                     timer: 0, // Initialize to 0, start_auction/loadNextPlayer will set it
-                    timerDuration: 10 // Default 10 seconds
+                    timerDuration: 10, // Default 10 seconds
+                    isReAuctionRound: false
                 };
 
                 socket.emit('room_created', { roomCode, state: roomStates[roomCode] });
@@ -120,11 +93,29 @@ const setupSocketHandlers = (io) => {
             try {
                 const state = roomStates[roomCode];
                 if (!state) return socket.emit('error', 'Room not found or not active');
-                if (state.status !== 'Lobby') return socket.emit('error', 'Auction already started');
+
+                const existingTeam = state.teams.find(t => t.ownerName === playerName);
+                if (state.status !== 'Lobby' && !existingTeam) {
+                    return socket.emit('error', 'Auction already started. New players cannot join.');
+                }
 
                 socket.join(roomCode);
 
-                // Do not assign team yet. Just let them in the lobby.
+                // Session Persistence: If a player with this name already claimed a team, re-link their socket
+                if (existingTeam) {
+                    console.log(`Re-linking ${playerName} to team ${existingTeam.teamName} (New Socket: ${socket.id})`);
+                    existingTeam.ownerSocketId = socket.id;
+
+                    // If the host is also this person, update host ID too
+                    // (Note: In a real app we'd use a better session ID, but for local testing this is great)
+                    if (state.hostName === playerName) {
+                        state.host = socket.id;
+                    }
+
+                    io.to(roomCode).emit('lobby_update', { teams: state.teams });
+                }
+
+                // Do not assign team yet if they are new. Just let them in the lobby.
                 socket.emit('room_joined', { roomCode, state });
             } catch (error) {
                 console.error(error);
@@ -205,9 +196,18 @@ const setupSocketHandlers = (io) => {
             if (!team) return socket.emit('error', 'You are not assigned to a franchise');
             if (state.currentBid.teamId === team.franchiseId) return socket.emit('error', 'You already hold the highest bid');
 
-            // Check rules
+            // Determine Increment based on pool and current amount
             const currentPlayer = state.players[state.currentIndex];
-            const minIncrement = 5; // 5 Lakhs
+            let minIncrement = 25; // Default 25 Lakhs for most pools
+
+            if (currentPlayer.poolName === 'pool4') {
+                if (state.currentBid.amount < 200) {
+                    minIncrement = 10; // 10 Lakhs up to 2 Cr
+                } else {
+                    minIncrement = 25; // 25 Lakhs after 2 Cr
+                }
+            }
+
             const requiredBid = state.currentBid.amount === 0 ? currentPlayer.basePrice : state.currentBid.amount + minIncrement;
 
             if (amount < requiredBid) return socket.emit('error', `Minimum bid is ${requiredBid}L`);
@@ -402,7 +402,7 @@ function loadNextPlayer(roomCode, io) {
     if (!state || state.status !== 'Auctioning') return;
 
     if (state.currentIndex >= state.players.length) {
-        endAuction(roomCode, io);
+        handleAuctionEndTransition(roomCode, io);
         return;
     }
 
@@ -516,7 +516,7 @@ async function processHammerDown(roomCode, io) {
             const ALL_SQUADS_FULL = state.teams.every(t => t.playersAcquired.length >= 25);
             if (ALL_SQUADS_FULL) {
                 console.log(`\n--- ALL SQUADS FULL (25 players each) in Room ${roomCode} ---`);
-                endAuction(roomCode, io);
+                handleAuctionEndTransition(roomCode, io);
                 return; // Stop further processing for this player
             }
         } catch (err) {
@@ -547,6 +547,39 @@ async function processHammerDown(roomCode, io) {
     setTimeout(() => {
         loadNextPlayer(roomCode, io);
     }, 3000);
+}
+
+async function handleAuctionEndTransition(roomCode, io) {
+    const state = roomStates[roomCode];
+    if (!state) return;
+
+    // Check if there are unsold players and if we already did re-auction
+    if (!state.isReAuctionRound) {
+        const allSoldPlayerIds = state.teams.flatMap(t => t.playersAcquired.map(p => String(p.player)));
+        const unsoldPlayers = state.players.filter(p => !allSoldPlayerIds.includes(String(p._id)));
+
+        if (unsoldPlayers.length > 0) {
+            console.log(`\n--- STARTING RE-AUCTION ROUND FOR ${unsoldPlayers.length} UNSOLD PLAYERS ---`);
+            state.isReAuctionRound = true;
+            state.players = unsoldPlayers;
+            state.currentIndex = 0;
+
+            io.to(roomCode).emit('receive_chat_message', {
+                id: Date.now(),
+                senderName: 'System',
+                senderTeam: 'System',
+                senderColor: '#ff0000',
+                message: "Starting re-auction round for all unsold players!",
+                timestamp: new Date().toLocaleTimeString()
+            });
+
+            setTimeout(() => loadNextPlayer(roomCode, io), 3000);
+            return;
+        }
+    }
+
+    // If no unsold players or already finished re-auction
+    endAuction(roomCode, io);
 }
 
 async function endAuction(roomCode, io) {

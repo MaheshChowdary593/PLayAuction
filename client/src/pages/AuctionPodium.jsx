@@ -14,6 +14,7 @@ const AuctionPodium = () => {
     const socket = useSocket();
 
     const [gameState, setGameState] = useState(location.state?.roomState || null);
+    const [playerName] = useState(localStorage.getItem('playerName') || 'Anonymous');
     const [currentPlayer, setCurrentPlayer] = useState(null);
     const [currentBid, setCurrentBid] = useState({ amount: 0, teamId: null, teamName: null, teamColor: null });
     const [timer, setTimer] = useState(10);
@@ -27,7 +28,8 @@ const AuctionPodium = () => {
 
     useEffect(() => {
         // Fetch players to create a fallback name map in case backend only sends IDs
-        fetch('http://localhost:5050/api/players')
+        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5050';
+        fetch(`${apiUrl}/api/players`)
             .then(res => res.json())
             .then(data => {
                 if (!Array.isArray(data)) throw new Error("Invalid player data format");
@@ -80,9 +82,33 @@ const AuctionPodium = () => {
     };
 
     useEffect(() => {
+        // --- Auto-Rejoin logic ---
+        if (!gameState && roomCode && playerName) {
+            console.log("Triggering auto-rejoin for", playerName);
+            socket.emit('join_room', { roomCode, playerName });
+        }
+
+        socket.on('room_joined', ({ state }) => {
+            console.log("Re-joined room, syncing state:", state);
+            setGameState(state);
+            setCurrentPlayer(state.players[state.currentIndex]);
+            setCurrentBid(state.currentBid);
+            setActiveTeams(state.teams);
+            setIsPaused(state.isPaused);
+            setTimer(state.timer || 10);
+        });
+
+        socket.on('lobby_update', ({ teams }) => {
+            if (teams) {
+                setActiveTeams(teams);
+                setGameState(prev => prev ? { ...prev, teams } : null);
+            }
+        });
+
         if (!socket || !gameState) return;
 
-        const team = gameState.teams.find(t => t.ownerSocketId === socket.id);
+        // Use playerName as a persistent identifier for re-linking myTeam
+        const team = gameState.teams.find(t => t.ownerSocketId === socket.id || t.ownerName === playerName);
         if (team) setMyTeam(team);
 
         socket.on('new_player', ({ player, nextPlayers, timer }) => {
@@ -201,7 +227,16 @@ const AuctionPodium = () => {
         </div>
     </div>;
 
-    const minIncrement = 5;
+    // Dynamic Increment Logic
+    const getMinIncrement = () => {
+        if (!currentPlayer) return 25;
+        if (currentPlayer.poolName === 'pool4') {
+            return currentBid.amount < 200 ? 10 : 25;
+        }
+        return 25; // Default for other pools
+    };
+
+    const minIncrement = getMinIncrement();
     const targetAmount = currentBid.amount === 0 ? (currentPlayer?.basePrice || 50) : currentBid.amount + minIncrement;
 
     const handleBid = () => {

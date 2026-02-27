@@ -29,7 +29,8 @@ const SquadSelection = () => {
         // Fetch initial state
         const fetchState = async () => {
             try {
-                const res = await fetch(`http://localhost:5050/api/room/${roomCode}`);
+                const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5050';
+                const res = await fetch(`${apiUrl}/api/room/${roomCode}`);
                 const data = await res.json();
                 setRoomState(data);
 

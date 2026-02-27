@@ -5,23 +5,23 @@ const evaluateTeam = async (team) => {
     const model = genAI.getGenerativeModel({ model: 'gemini-flash-latest' });
 
     const prompt = `
-You are an elite T20 Franchise Cricket Analyst and Talent Scout. Evaluate the following team's IPL auction draft with strictly unbiased, data-driven rigor.
+You are a cynical, world-class T20 Franchise Consultant known for your brutal honesty and "High-Performance or Bust" attitude. You despise mediocrity and value tactical perfection.
 
 Team Name: ${team.teamName}
 Total Budget: ₹12000L
 Budget Remaining: ₹${team.currentPurse || team.budgetRemaining}L
 
-Drafted Squad (Playing 15):
+Drafted Squad (Total Players: ${team.playersAcquired.length}):
 ${team.playersAcquired.map(p => {
         const s = p.stats || {};
         return `- ${p.name || 'Unknown'} (${p.role}, ${p.nationality}) | Matches: ${s.matches}, Runs: ${s.runs}, SR: ${s.strikeRate}, Wickets: ${s.wickets}, Econ: ${s.economy} | Price: ₹${p.boughtFor}L`;
     }).join('\n')}
 
-Analyze this squad deeply:
-1. **Unbiased Tactical Balance**: Evaluate the core stability. Do they have enough bowling options (min 6)? Do they have a reliable WK? **CRITICAL**: If the squad has fewer than 11 players, provide a scathing tactical critique of the failure to utilize the budget effectively.
-2. **Historical IPL Impact**: Analyze the players based on their career impact. Are the stars proven match-winners or high-risk investments?
-3. **Firepower & Versatility**: Assess the depth of batting (till what number?) and the variety in bowling (LFM, RF, SLA, OB, LB).
-4. **Playing 11 Quality & Completeness**: How strong is their likely starting 11? If they can't even form an 11, the overall score must reflect this severe failure.
+DIRECTIONS FOR EVALUATION:
+1. **Be Brutal**: If a selection is a waste of money (old, poor stats, or overpriced), call it out. If the squad is balanced but lacks a "X-factor" superstar, mark them down.
+2. **Tactical Depth**: Check for "finishers", "death bowlers", and "Powerplay specialists". Don't just look at names, look at the stats.
+3. **Budget Usage**: Leaving too much money on the table is a fireable offense. Spending it all on one or two players is equally stupid.
+4. **Grant Granularity**: Use the overallScore to distinguish quality.
 
 RESPOND ONLY WITH A VALID JSON OBJECT matching this EXACT structure:
 {
@@ -29,15 +29,15 @@ RESPOND ONLY WITH A VALID JSON OBJECT matching this EXACT structure:
   "bowlingScore": <1-10>,
   "balanceScore": <1-10>,
   "impactScore": <1-10>,
-  "overallScore": <1-100 (Be strict: 0-10 if they didn't even buy 11 players)>,
-  "starPlayer": "<Name of biggest match-winner or 'None' if squad empty>",
+  "overallScore": <1-100 (Be extremely precise: use decimals if needed, e.g., 88.4)>,
+  "starPlayer": "<Name of biggest match-winner>",
   "hiddenGem": "<Name of a high-value steal>",
-  "playing11": ["Name1", "Name2", ... (Up to 11 names)],
-  "tacticalVerdict": "3-4 sentences of unbiased analysis. Critique the lack of depth if applicable.",
-  "weakness": "1-2 sentences identifying the primary risk or the reason for a low score.",
-  "historicalContext": "Briefly mention how this squad (or lack thereof) compares to IPL standards."
+  "playing11": ["Name1", "Name2", ... (Exactly 11 names of their best squad)],
+  "tacticalVerdict": "3-4 sentences of 'expert' analysis. Be sharp, critical, and specific about their squad construction.",
+  "weakness": "1-2 sentences of brutal honesty about why this team will fail or struggle.",
+  "historicalContext": "A snarky comparison to a famous IPL failure or success."
 }
-No other text. Be objective and critical.
+No other text. Be an expert, be rude, be accurate.
 `;
 
     try {
@@ -166,15 +166,58 @@ const evaluateAllTeams = async (teamsData) => {
         })
     );
 
-    // Sort by overall score descending
-    evaluations.sort((a, b) => b.evaluation.overallScore - a.evaluation.overallScore);
+    // Final Ranking & Tie-Breaker Phase
+    const finalRankings = await MasterRanker(evaluations);
+    return finalRankings;
+};
 
-    // Assign ranks
-    evaluations.forEach((team, index) => {
-        team.rank = index + 1;
-    });
+const MasterRanker = async (evaluations) => {
+    const model = genAI.getGenerativeModel({ model: 'gemini-flash-latest' });
 
-    return evaluations;
+    const prompt = `
+You are the Executive Chairman of the IPL Governing Council. You have received the following team evaluations from our scouts.
+Your job is to provide the FINAL, DEFINITIVE RANKING of these franchises.
+
+Evaluations:
+${evaluations.map(e => `- ${e.teamName}: Score ${e.evaluation.overallScore} | Verdict: ${e.evaluation.tacticalVerdict}`).join('\n')}
+
+CRITICAL RULES:
+1. **Strict Order**: You must rank them from 1 to ${evaluations.length} based on their performance and tactical quality.
+2. **No Ties**: If scores are identical, you MUST decide who is better based on the 'Expert' logic (e.g., better bowling depth, more reliable anchor, etc.). 
+3. **Tie-Breaker Reason**: If you move one team above another who has the same score, you MUST provide a short 'tieBreakerReason'.
+4. **Non-Alphabetical**: Do NOT follow team name order. Look only at quality.
+
+RESPOND ONLY WITH A VALID JSON ARRAY of objects:
+[
+  { "teamName": "Name", "rank": 1, "tieBreakerReason": "Optional if they were tied in score" },
+  ...
+]
+`;
+
+    try {
+        console.log(`--- Master Ranker Starting ---`);
+        const result = await model.generateContent(prompt);
+        const text = result.response.text();
+        const cleanedText = text.replace(/```json/g, '').replace(/```/g, '').trim();
+        const rankings = JSON.parse(cleanedText);
+
+        // Map rankings back to full data
+        return evaluations.map(team => {
+            const rankData = rankings.find(r => r.teamName === team.teamName);
+            return {
+                ...team,
+                rank: rankData ? rankData.rank : 99,
+                tieBreakerReason: rankData ? rankData.tieBreakerReason : null
+            };
+        }).sort((a, b) => a.rank - b.rank);
+
+    } catch (error) {
+        console.error('Error in Master Ranker:', error);
+        // Fallback to basic sort
+        return evaluations
+            .sort((a, b) => b.evaluation.overallScore - a.evaluation.overallScore)
+            .map((t, i) => ({ ...t, rank: i + 1 }));
+    }
 };
 
 module.exports = { evaluateAllTeams, selectTop15 };
