@@ -13,7 +13,8 @@ const ResultsReveal = () => {
 
     useEffect(() => {
         // Fetch players to create a fallback name map
-        fetch('http://localhost:5050/api/players')
+        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5050';
+        fetch(`${apiUrl}/api/players`)
             .then(res => res.json())
             .then(data => {
                 const map = {};
@@ -29,7 +30,8 @@ const ResultsReveal = () => {
     useEffect(() => {
         const fetchResults = async () => {
             try {
-                const response = await fetch(`http://localhost:5050/api/room/${roomCode}/results`);
+                const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5050';
+                const response = await fetch(`${apiUrl}/api/room/${roomCode}/results`);
                 const data = await response.json();
                 if (response.ok) {
                     const sorted = data.teams.sort((a, b) => a.rank - b.rank);
@@ -83,7 +85,7 @@ const ResultsReveal = () => {
                 <header className="flex justify-between items-end mb-16">
                     <div>
                         <h1 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] mb-2">Auction Concluded / Final Review</h1>
-                        <h2 className="text-7xl font-black italic tracking-tighter uppercase leading-none">
+                        <h2 className="text-5xl lg:text-6xl xl:text-7xl font-black italic tracking-tighter uppercase leading-none">
                             The <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400">Verdict</span>
                         </h2>
                     </div>
@@ -143,8 +145,8 @@ const ResultsReveal = () => {
                                     <div className="flex justify-between items-start mb-12">
                                         <div>
                                             <div className="flex items-center gap-4 mb-4">
-                                                <div className="w-4 h-12 rounded-full" style={{ backgroundColor: selectedTeam.teamThemeColor }}></div>
-                                                <h2 className="text-5xl font-black uppercase tracking-tighter italic">{selectedTeam.teamName}</h2>
+                                                <div className="w-4 h-8 lg:h-12 rounded-full" style={{ backgroundColor: selectedTeam.teamThemeColor }}></div>
+                                                <h2 className="text-3xl lg:text-4xl xl:text-5xl font-black uppercase tracking-tighter italic">{selectedTeam.teamName}</h2>
                                             </div>
                                             <p className="text-slate-300 font-bold max-w-lg leading-relaxed text-sm">
                                                 {selectedTeam.evaluation?.tacticalVerdict || selectedTeam.evaluation?.summary}
@@ -152,6 +154,13 @@ const ResultsReveal = () => {
                                             <p className="text-blue-400/60 font-black text-[10px] uppercase tracking-widest mt-4">
                                                 {selectedTeam.evaluation?.historicalContext}
                                             </p>
+
+                                            {selectedTeam.tieBreakerReason && (
+                                                <div className="mt-4 p-3 bg-blue-500/10 border border-blue-500/30 rounded-xl">
+                                                    <div className="text-[8px] font-black text-blue-400 uppercase tracking-widest mb-1">Tie-Breaker Logic</div>
+                                                    <p className="text-[11px] font-bold text-blue-200 italic">"{selectedTeam.tieBreakerReason}"</p>
+                                                </div>
+                                            )}
                                         </div>
                                         <div className="flex flex-col items-center gap-4">
                                             <div className="glass-panel p-6 rounded-[30px] border-white/5 text-center px-10">

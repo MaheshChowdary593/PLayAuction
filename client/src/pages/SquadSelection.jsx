@@ -29,7 +29,8 @@ const SquadSelection = () => {
         // Fetch initial state
         const fetchState = async () => {
             try {
-                const res = await fetch(`http://localhost:5050/api/room/${roomCode}`);
+                const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5050';
+                const res = await fetch(`${apiUrl}/api/room/${roomCode}`);
                 const data = await res.json();
                 setRoomState(data);
 
@@ -127,13 +128,13 @@ const SquadSelection = () => {
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
                     <div className="lg:col-span-2">
                         <div className="flex justify-between items-center mb-6">
-                            <h3 className="text-xl font-black uppercase tracking-tight">Your Drafted Squad ({squad.length} Players)</h3>
-                            <div className="text-sm font-bold text-slate-400">
+                            <h3 className="text-lg lg:text-xl font-black uppercase tracking-tight">Your Drafted Squad ({squad.length} Players)</h3>
+                            <div className="text-xs lg:text-sm font-bold text-slate-400">
                                 Selected: <span className={selectedIds.length === 15 ? 'text-green-400' : 'text-yellow-500'}>{selectedIds.length} / 15</span>
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             {squad.map((entry, idx) => {
                                 const isSelected = selectedIds.includes(entry.player);
                                 return (
@@ -152,7 +153,10 @@ const SquadSelection = () => {
                                                 {isSelected && <div className="w-2 h-2 bg-white rounded-full"></div>}
                                             </div>
                                             <div>
-                                                <div className="font-bold text-sm">{entry.name}</div>
+                                                <div className="font-bold text-sm flex items-center gap-1">
+                                                    {entry.name}
+                                                    {entry.isOverseas && <span title="Overseas Player">✈️</span>}
+                                                </div>
                                                 <div className="text-[10px] text-slate-500 uppercase font-black tracking-widest">₹{entry.boughtFor}L</div>
                                             </div>
                                         </div>

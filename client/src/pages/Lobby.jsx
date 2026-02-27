@@ -23,7 +23,7 @@ const IPL_TEAMS = [
 
 const Lobby = () => {
     const [selectedTeamId, setSelectedTeamId] = useState('');
-    const [playerName, setPlayerName] = useState('');
+    const [playerName, setPlayerName] = useState(localStorage.getItem('playerName') || '');
     const [roomCodeInput, setRoomCodeInput] = useState('');
     const [isJoined, setIsJoined] = useState(false);
     const [roomState, setRoomState] = useState(null);
@@ -91,6 +91,12 @@ const Lobby = () => {
         };
     }, [socket, navigate]);
 
+    useEffect(() => {
+        if (playerName) {
+            localStorage.setItem('playerName', playerName);
+        }
+    }, [playerName]);
+
     const handleCreate = () => {
         if (!playerName) return setError('Please enter your name');
         socket.emit('create_room', { playerName });
@@ -142,10 +148,10 @@ const Lobby = () => {
                                 <path d="M2 12L12 17L22 12" stroke="#00d2ff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                             </svg>
                         </motion.div>
-                        <h1 className="text-7xl font-black italic tracking-tighter leading-none text-white uppercase mb-4">
+                        <h1 className="text-5xl lg:text-6xl xl:text-7xl font-black italic tracking-tighter leading-none text-white uppercase mb-4">
                             IPL <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-500">Auction</span>
                         </h1>
-                        <p className="text-slate-500 text-lg font-bold leading-relaxed max-w-sm">
+                        <p className="text-slate-500 text-base lg:text-lg font-bold leading-relaxed max-w-sm">
                             Real-time multiplayer bidding arena. Draft your dream XI against rivals.
                         </p>
                     </div>

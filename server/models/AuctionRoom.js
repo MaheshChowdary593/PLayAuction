@@ -14,10 +14,12 @@ const auctionRoomSchema = new mongoose.Schema({
         ownerSocketId: { type: String },
         ownerName: { type: String },
         currentPurse: { type: Number, default: 12000 },
+        overseasCount: { type: Number, default: 0 },
         rtmUsed: { type: Boolean, default: false },
         playersAcquired: [{
             player: { type: mongoose.Schema.Types.ObjectId, ref: 'Player' },
             name: { type: String },
+            isOverseas: { type: Boolean, default: false },
             boughtFor: { type: Number }
         }],
         playing15: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Player' }],
