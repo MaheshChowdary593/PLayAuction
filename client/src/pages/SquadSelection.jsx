@@ -128,13 +128,13 @@ const SquadSelection = () => {
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
                     <div className="lg:col-span-2">
                         <div className="flex justify-between items-center mb-6">
-                            <h3 className="text-xl font-black uppercase tracking-tight">Your Drafted Squad ({squad.length} Players)</h3>
-                            <div className="text-sm font-bold text-slate-400">
+                            <h3 className="text-lg lg:text-xl font-black uppercase tracking-tight">Your Drafted Squad ({squad.length} Players)</h3>
+                            <div className="text-xs lg:text-sm font-bold text-slate-400">
                                 Selected: <span className={selectedIds.length === 15 ? 'text-green-400' : 'text-yellow-500'}>{selectedIds.length} / 15</span>
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             {squad.map((entry, idx) => {
                                 const isSelected = selectedIds.includes(entry.player);
                                 return (

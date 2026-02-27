@@ -85,7 +85,7 @@ const ResultsReveal = () => {
                 <header className="flex justify-between items-end mb-16">
                     <div>
                         <h1 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] mb-2">Auction Concluded / Final Review</h1>
-                        <h2 className="text-7xl font-black italic tracking-tighter uppercase leading-none">
+                        <h2 className="text-5xl lg:text-6xl xl:text-7xl font-black italic tracking-tighter uppercase leading-none">
                             The <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400">Verdict</span>
                         </h2>
                     </div>
@@ -145,8 +145,8 @@ const ResultsReveal = () => {
                                     <div className="flex justify-between items-start mb-12">
                                         <div>
                                             <div className="flex items-center gap-4 mb-4">
-                                                <div className="w-4 h-12 rounded-full" style={{ backgroundColor: selectedTeam.teamThemeColor }}></div>
-                                                <h2 className="text-5xl font-black uppercase tracking-tighter italic">{selectedTeam.teamName}</h2>
+                                                <div className="w-4 h-8 lg:h-12 rounded-full" style={{ backgroundColor: selectedTeam.teamThemeColor }}></div>
+                                                <h2 className="text-3xl lg:text-4xl xl:text-5xl font-black uppercase tracking-tighter italic">{selectedTeam.teamName}</h2>
                                             </div>
                                             <p className="text-slate-300 font-bold max-w-lg leading-relaxed text-sm">
                                                 {selectedTeam.evaluation?.tacticalVerdict || selectedTeam.evaluation?.summary}
