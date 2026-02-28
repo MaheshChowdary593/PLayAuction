@@ -33,4 +33,4 @@ const playerSchema = new mongoose.Schema({
 
 playerSchema.index({ "role": 1 });
 
-module.exports = mongoose.model('Player', playerSchema, 'new_enhanced');
+module.exports = mongoose.model('Player', playerSchema, 'ipl_data');

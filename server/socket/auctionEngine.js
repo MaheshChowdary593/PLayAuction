@@ -9,69 +9,76 @@ const jwt = require('jsonwebtoken');
 const JWT_SECRET = process.env.JWT_SECRET || 'ipl_auction_fallback_secret';
 
 async function fetchAllPlayers() {
-    const collections = [
-        'marquee',
-        'pool1_batsmen',
-        'pool1_bowlers',
-        'pool2_batsmen',
-        'pool2_bowlers',
-        'pool3',
-        'pool4'
-    ];
-
     try {
-        console.time("[DATA] Multi-fetch duration");
+        console.time("[DATA] Model-fetch duration");
 
-        // Fetch all collections in parallel for speed
-        const poolResults = await Promise.all(
-            collections.map(async (collName) => {
-                const players = await mongoose.connection.db.collection(collName).find({}).toArray();
+        // Fetch all players from the 'ipl_data' collection using the Player model
+        const allPlayers = await Player.find().lean();
 
-                // Shuffle players within this specific collection (Fisher-Yates)
-                for (let i = players.length - 1; i > 0; i--) {
-                    const j = Math.floor(Math.random() * (i + 1));
-                    [players[i], players[j]] = [players[j], players[i]];
-                }
+        if (!allPlayers || allPlayers.length === 0) {
+            console.error("[DATA] CRITICAL: No players found in 'ipl_data' collection!");
+            return [];
+        }
 
-                // Determine basePrice (in lakhs)
-                let bp = 50;
-                if (['marquee', 'pool1_batsmen', 'pool1_bowlers'].includes(collName)) bp = 200;
-                else if (['pool2_batsmen', 'pool2_bowlers'].includes(collName)) bp = 150;
-                else if (collName === 'pool3') bp = 100;
-                else if (collName === 'pool4') bp = 50;
+        const roleOrder = ['marquee', 'Batsman', 'Bowler', 'All-Rounder', 'Wicketkeeper'];
+        const sortedPlayers = [];
 
-                // Format and map snake_case MongoDB stats to camelCase UI fields
-                return players.map(p => ({
-                    ...p,
-                    name: p.name || p.player || "Unknown Player",
-                    poolName: collName.replace(/_/g, ' ').toUpperCase(),
-                    poolID: collName,
-                    basePrice: bp,
-                    image: p.image_path || p.image || "/default-player.png",
-                    // Nest stats for UI compatibility
-                    stats: {
-                        battingAvg: p.batting_avg || p.battingAvg || 0,
-                        strikeRate: p.batting_strike_rate || p.strikeRate || 0,
-                        highestScore: p.highest_score || p.highestScore || 0,
-                        bowlingAvg: p.bowling_avg || p.bowlingAvg || 0,
-                        economy: p.bowling_economy || p.economy || 0,
-                        bestFigures: p.best_bowling_figures || p.bestFigures || "0/0",
-                        matches: p.matches || 0,
-                        runs: p.runs || 0,
-                        wickets: p.wickets || 0,
-                        catches: p.catches || 0,
-                        stumpings: p.stumpings || 0
-                    }
-                }));
-            })
+        // 1. Identify Marquees (highest priority)
+        const marquee = allPlayers.filter(p =>
+            (p.poolName && p.poolName.toLowerCase().includes('marquee')) ||
+            (p.poolID && p.poolID.toLowerCase().includes('marquee')) ||
+            (p.poolName && p.poolName.toLowerCase().includes('marqueeset'))
         );
+        // Shuffle marquee
+        for (let i = marquee.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [marquee[i], marquee[j]] = [marquee[j], marquee[i]];
+        }
+        sortedPlayers.push(...marquee);
 
-        console.timeEnd("[DATA] Multi-fetch duration");
+        // 2. Groups by Role
+        ['Batsman', 'Bowler', 'All-Rounder', 'Wicketkeeper'].forEach(role => {
+            const roleGroup = allPlayers.filter(p =>
+                !marquee.includes(p) &&
+                (p.role === role || (role === 'Batsman' && p.role === 'Batsmen') || (role === 'All-Rounder' && p.role === 'Allrounder'))
+            );
+            // Shuffle group
+            for (let i = roleGroup.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [roleGroup[i], roleGroup[j]] = [roleGroup[j], roleGroup[i]];
+            }
+            sortedPlayers.push(...roleGroup);
+        });
 
-        // Flatten into final auction order
-        return poolResults.flat();
-    } catch (err) {
-        console.error("[DATA] Multi-collection fetch error:", err.message);
+        // 3. Any stragglers
+        const remaining = allPlayers.filter(p => !sortedPlayers.includes(p));
+        sortedPlayers.push(...remaining);
+
+        console.timeEnd("[DATA] Model-fetch duration");
+        console.log(`[DATA] Successfully loaded ${sortedPlayers.length} players for room`);
+
+        // Format for UI compatibility (ensure stats are nested correctly)
+        return sortedPlayers.map(p => ({
+            ...p,
+            name: p.player || p.name || "Unknown Player",
+            basePrice: p.basePrice || 50,
+            image: p.image_path || p.imagepath || p.photoUrl || "/default-player.png",
+            photoUrl: p.image_path || p.imagepath || p.photoUrl || "/default-player.png",
+            stats: {
+                battingAvg: p.stats?.battingAvg || p.batting_avg || 0,
+                strikeRate: p.stats?.strikeRate || p.batting_strike_rate || 0,
+                highestScore: p.stats?.highestScore || 0,
+                bowlingAvg: p.stats?.bowlingAvg || p.bowling_avg || 0,
+                economy: p.stats?.economy || p.bowling_economy || 0,
+                matches: p.stats?.matches || 0,
+                runs: p.stats?.runs || 0,
+                wickets: p.stats?.wickets || 0,
+                catches: p.stats?.catches || 0,
+                stumpings: p.stats?.stumpings || 0
+            }
+        }));
+    } catch (error) {
+        console.error("[DATA] Error in fetchAllPlayers:", error);
         return [];
     }
 }
@@ -412,6 +419,12 @@ const setupSocketHandlers = (io) => {
             // Prevent starting auction when nobody has claimed a franchise
             if (!state.teams || state.teams.length === 0) {
                 return socket.emit('error', 'At least one team must claim a franchise before auction can begin');
+            }
+
+            // --- CRITICAL SECURITY CHECK: Are there actually players loaded? ---
+            if (!state.players || state.players.length === 0) {
+                console.error(`[ROOM ${roomCode}] Attempted to start auction with 0 players!`);
+                return socket.emit('error', 'Critical Error: No players loaded in this room. Please recreate the room or contact support.');
             }
 
             state.status = 'Auctioning';
