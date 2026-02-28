@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 
 const auctionRoomSchema = new mongoose.Schema({
     roomId: { type: String, required: true, unique: true },
+    type: { type: String, enum: ["public", "private"], default: "private" }, // Formal Room Type
     hostSocketId: { type: String }, // For legacy engine reference
     status: { type: String, enum: ["Lobby", "Auctioning", "Selection", "Finished"], default: "Lobby" },
     purseLimit: { type: Number, default: 12000 },

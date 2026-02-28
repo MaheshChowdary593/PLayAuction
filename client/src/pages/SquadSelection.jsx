@@ -110,26 +110,26 @@ const SquadSelection = () => {
     };
 
     return (
-        <div className="min-h-screen bg-darkBg text-white p-8 font-sans">
+        <div className="min-h-screen bg-darkBg text-white p-4 sm:p-8 font-sans">
             <div className="max-w-6xl mx-auto">
-                <header className="flex justify-between items-end mb-12">
+                <header className="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-8 md:mb-12 gap-4">
                     <div>
-                        <h1 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] mb-2">Auction Concluded / Phase 2</h1>
-                        <h2 className="text-6xl font-black italic tracking-tighter uppercase leading-none">
+                        <h1 className="text-[8px] md:text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] mb-2">Auction Concluded / Phase 2</h1>
+                        <h2 className="text-4xl md:text-5xl lg:text-6xl font-black italic tracking-tighter uppercase leading-none">
                             Squad <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400">Selection</span>
                         </h2>
                     </div>
-                    <div className="text-right">
-                        <div className="text-4xl font-black font-mono text-yellow-500 mb-1">{formatTime(timer)}</div>
-                        <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Time Remaining</div>
+                    <div className="text-left sm:text-right">
+                        <div className="text-3xl md:text-4xl font-black font-mono text-yellow-500 mb-1">{formatTime(timer)}</div>
+                        <div className="text-[8px] md:text-[10px] font-black text-slate-500 uppercase tracking-widest">Time Remaining</div>
                     </div>
                 </header>
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
                     <div className="lg:col-span-2">
                         <div className="flex justify-between items-center mb-6">
-                            <h3 className="text-lg lg:text-xl font-black uppercase tracking-tight">Your Drafted Squad ({squad.length} Players)</h3>
-                            <div className="text-xs lg:text-sm font-bold text-slate-400">
+                            <h3 className="text-base md:text-lg lg:text-xl font-black uppercase tracking-tight">Your Drafted Squad ({squad.length} Players)</h3>
+                            <div className="text-[10px] md:text-xs lg:text-sm font-bold text-slate-400">
                                 Selected: <span className={selectedIds.length === 15 ? 'text-green-400' : 'text-yellow-500'}>{selectedIds.length} / 15</span>
                             </div>
                         </div>
@@ -167,13 +167,13 @@ const SquadSelection = () => {
                     </div>
 
                     <div className="space-y-6">
-                        <div className="glass-card p-8 rounded-[32px] border-white/10 sticky top-8">
-                            <h3 className="text-lg font-black uppercase tracking-widest mb-6">Selection Method</h3>
+                        <div className="glass-card p-6 md:p-8 rounded-[32px] border-white/10 sticky top-8">
+                            <h3 className="text-base md:text-lg font-black uppercase tracking-widest mb-6">Selection Method</h3>
 
                             <button
                                 onClick={handleAutoSelect}
                                 disabled={isConfirmed || isAutoSelecting}
-                                className={`w-full py-4 rounded-xl font-black uppercase tracking-widest text-xs mb-4 transition-all flex items-center justify-center gap-2
+                                className={`w-full py-4 rounded-xl font-black uppercase tracking-widest text-[10px] md:text-xs mb-4 transition-all flex items-center justify-center gap-2
                                     ${isAutoSelecting ? 'bg-white/5 text-slate-500 animate-pulse' : 'bg-gradient-to-r from-purple-600 to-blue-600 hover:scale-[1.02] shadow-lg shadow-blue-900/20'}
                                     ${isConfirmed ? 'opacity-50 grayscale' : ''}
                                 `}
@@ -181,16 +181,16 @@ const SquadSelection = () => {
                                 {isAutoSelecting ? '🤖 AI Strategizing...' : '🤖 Auto Select (Gemini AI)'}
                             </button>
 
-                            <p className="text-[10px] text-slate-500 font-bold leading-relaxed mb-8 px-2">
+                            <p className="text-[9px] md:text-[10px] text-slate-500 font-bold leading-relaxed mb-6 md:mb-8 px-2">
                                 * AI uses real-world player stats, T20 logic, and tactical balance to pick your optimal 15.
                             </p>
 
-                            <div className="h-px bg-white/5 mb-8"></div>
+                            <div className="h-px bg-white/5 mb-6 md:mb-8"></div>
 
                             <button
                                 onClick={handleManualSubmit}
                                 disabled={isConfirmed || isAutoSelecting || (selectedIds.length < 15 && squad.length >= 15)}
-                                className={`w-full py-4 rounded-xl font-black uppercase tracking-widest text-xs transition-all
+                                className={`w-full py-4 rounded-xl font-black uppercase tracking-widest text-[10px] md:text-xs transition-all
                                     ${(isConfirmed || selectedIds.length === 15) ? 'bg-green-500 text-white' : 'bg-white/10 text-white hover:bg-white/20'}
                                     ${(selectedIds.length < 15 && squad.length >= 15) ? 'opacity-30 cursor-not-allowed' : ''}
                                 `}

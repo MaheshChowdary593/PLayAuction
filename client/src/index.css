@@ -55,7 +55,26 @@ body {
     background: linear-gradient(var(--dark-depth), var(--dark-depth)) padding-box,
       linear-gradient(to right, var(--neon-blue), #9333ea) border-box;
   }
+
+  .gold-ornate-border {
+    @apply relative border-2 border-yellow-500/50;
+    box-shadow: 0 0 20px rgba(255, 204, 51, 0.2);
+    background: linear-gradient(to bottom, rgba(30, 20, 0, 0.9), rgba(10, 5, 0, 0.95));
+  }
+
+  .gold-ornate-border::before {
+    content: '';
+    @apply absolute inset-1 border border-yellow-400/30;
+  }
 }
+
+@layer utilities {
+  .text-vertical {
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+  }
+}
+
 
 /* Custom Gavel Slam Keyframes */
 @keyframes gavel-slam {
