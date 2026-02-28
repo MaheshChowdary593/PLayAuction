@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useSocket } from '../context/SocketContext';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Plane } from 'lucide-react';
+import { useSession } from '../context/SessionContext';
 
 const SquadSelection = () => {
     const { roomCode } = useParams();
@@ -14,6 +16,9 @@ const SquadSelection = () => {
     const [isAutoSelecting, setIsAutoSelecting] = useState(false);
     const [isConfirmed, setIsConfirmed] = useState(false);
     const [roomState, setRoomState] = useState(null);
+    const [toast, setToast] = useState(null);
+    const { userId, isReady: isSessionReady } = useSession();
+    const [isSocketReady, setIsSocketReady] = useState(false);
 
     // Local timer interpolation to prevent "stopping" feeling if connection hiccups
     useEffect(() => {
@@ -24,19 +29,22 @@ const SquadSelection = () => {
     }, []);
 
     useEffect(() => {
-        if (!socket) return;
+        if (!socket || !roomCode || !isSessionReady) return;
+        setIsSocketReady(true);
 
-        // Fetch initial state
+        // Fetch initial state via API for fast hydrate
         const fetchState = async () => {
             try {
                 const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5050';
                 const res = await fetch(`${apiUrl}/api/room/${roomCode}`);
+                if (!res.ok) throw new Error("Room not found");
                 const data = await res.json();
                 setRoomState(data);
 
-                const myTeam = data.franchisesInRoom.find(t => t.ownerSocketId === socket.id);
+                // Use secure userId for team identification
+                const myTeam = data.franchisesInRoom.find(t => t.ownerUserId === userId);
                 if (myTeam) {
-                    setSquad(myTeam.playersAcquired);
+                    setSquad(myTeam.playersAcquired || []);
                     if (myTeam.playing15 && myTeam.playing15.length > 0) {
                         setSelectedIds(myTeam.playing15);
                         setIsConfirmed(true);
@@ -44,13 +52,31 @@ const SquadSelection = () => {
                 }
             } catch (err) {
                 console.error("Failed to fetch room state:", err);
+                setToast({ message: "Failed to connect to room. Redirecting...", type: 'error' });
+                setTimeout(() => navigate('/'), 3000);
             }
         };
 
         fetchState();
 
+        // Also join the room via socket to ensure socket ID is updated on server
+        socket.emit('join_room', { roomCode });
+
+        const handleRoomJoined = ({ state }) => {
+            setRoomState(state);
+            // If we find our team in the live update, sync it
+            const myTeam = state.teams?.find(t => t.ownerUserId === userId);
+            if (myTeam) {
+                setSquad(myTeam.playersAcquired || []);
+                if (myTeam.playing15 && myTeam.playing15.length > 0) {
+                    setSelectedIds(myTeam.playing15);
+                    setIsConfirmed(true);
+                }
+            }
+        };
+
+        socket.on('room_joined', handleRoomJoined);
         socket.on('selection_timer_tick', ({ timer }) => {
-            // Sync local timer with server authority
             setTimer(timer);
         });
 
@@ -68,16 +94,17 @@ const SquadSelection = () => {
             if (msg.includes('AI Selection failed')) {
                 setIsAutoSelecting(false);
             }
-            alert(msg);
+            setToast({ message: msg, type: 'error' });
         });
 
         return () => {
+            socket.off('room_joined', handleRoomJoined);
             socket.off('selection_timer_tick');
             socket.off('selection_confirmed');
             socket.off('results_ready');
             socket.off('error');
         };
-    }, [socket, roomCode, navigate]);
+    }, [socket, roomCode, navigate, isSessionReady, userId]);
 
     const togglePlayer = (id) => {
         if (isConfirmed) return;
@@ -92,7 +119,7 @@ const SquadSelection = () => {
 
     const handleManualSubmit = () => {
         if (selectedIds.length < 15 && squad.length >= 15) {
-            alert("Please select exactly 15 players (or all if you have fewer).");
+            setToast({ message: "Please select exactly 15 players (or all if you have fewer).", type: 'warning' });
             return;
         }
         socket.emit('manual_select_playing_15', { roomCode, playerIds: selectedIds });
@@ -108,6 +135,18 @@ const SquadSelection = () => {
         const s = seconds % 60;
         return `${m}:${s < 10 ? '0' : ''}${s}`;
     };
+
+    if (!isSessionReady || !isSocketReady || !roomState) {
+        return (
+            <div className="min-h-screen bg-darkBg flex flex-col items-center justify-center p-6 text-center text-white">
+                <div className="w-16 h-16 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin mb-8"></div>
+                <h2 className="text-xl font-black uppercase tracking-[0.3em] mb-2">Reconciling Session</h2>
+                <p className="text-slate-500 text-sm max-w-xs font-bold uppercase tracking-widest animate-pulse">
+                    Restoring your squad data...
+                </p>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen bg-darkBg text-white p-4 sm:p-8 font-sans">
@@ -153,9 +192,14 @@ const SquadSelection = () => {
                                                 {isSelected && <div className="w-2 h-2 bg-white rounded-full"></div>}
                                             </div>
                                             <div>
-                                                <div className="font-bold text-sm flex items-center gap-1">
+                                                <div className="font-bold text-sm flex items-center gap-2">
                                                     {entry.name}
-                                                    {entry.isOverseas && <span title="Overseas Player">✈️</span>}
+                                                    {entry.isOverseas && (
+                                                        <Plane
+                                                            className="w-3 h-3 text-yellow-500 -rotate-45"
+                                                            fill="rgba(234, 179, 8, 0.4)"
+                                                        />
+                                                    )}
                                                 </div>
                                                 <div className="text-[10px] text-slate-500 uppercase font-black tracking-widest">₹{entry.boughtFor}L</div>
                                             </div>
@@ -211,6 +255,83 @@ const SquadSelection = () => {
                     </div>
                 </div>
             </div>
+
+            {/* Toast Notification Modal */}
+            <AnimatePresence>
+                {toast && (
+                    <motion.div
+                        initial={{ opacity: 0, y: -40, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: -30, scale: 0.95 }}
+                        className="fixed top-6 left-1/2 -translate-x-1/2 z-[250] w-full max-w-sm px-4"
+                    >
+                        <div
+                            className={`flex items-start gap-4 p-5 rounded-2xl border shadow-2xl backdrop-blur-md ${toast.type === "error"
+                                ? "bg-red-500/10 border-red-500/30"
+                                : toast.type === "warning"
+                                    ? "bg-yellow-500/10 border-yellow-500/30"
+                                    : toast.type === "success"
+                                        ? "bg-green-500/10 border-green-500/30"
+                                        : "bg-blue-500/10 border-blue-500/30"
+                                }`}
+                        >
+                            {/* Icon */}
+                            <div
+                                className={`shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${toast.type === "error"
+                                    ? "bg-red-500/20"
+                                    : toast.type === "warning"
+                                        ? "bg-yellow-500/20"
+                                        : toast.type === "success"
+                                            ? "bg-green-500/20"
+                                            : "bg-blue-500/20"
+                                    }`}
+                            >
+                                {toast.type === "error" ? (
+                                    <svg className="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                ) : toast.type === "success" ? (
+                                    <svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" />
+                                    </svg>
+                                ) : toast.type === "warning" ? (
+                                    <svg className="w-5 h-5 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+                                    </svg>
+                                ) : (
+                                    <svg className="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                )}
+                            </div>
+
+                            {/* Message */}
+                            <p
+                                className={`flex-1 text-sm font-bold leading-relaxed ${toast.type === "error"
+                                    ? "text-red-300"
+                                    : toast.type === "warning"
+                                        ? "text-yellow-300"
+                                        : toast.type === "success"
+                                            ? "text-green-300"
+                                            : "text-blue-200"
+                                    }`}
+                            >
+                                {toast.message}
+                            </p>
+
+                            {/* Dismiss */}
+                            <button
+                                onClick={() => setToast(null)}
+                                className="shrink-0 text-slate-500 hover:text-white transition-colors mt-0.5"
+                            >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     );
 };

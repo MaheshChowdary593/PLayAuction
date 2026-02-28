@@ -22,6 +22,7 @@ const server = http.createServer(app);
 const setupSocketHandlers = require('./socket/auctionEngine');
 
 const apiRoutes = require('./routes/api');
+const sessionRoutes = require('./routes/session');
 
 // Setup Socket.io
 const io = new Server(server, {
@@ -34,6 +35,7 @@ const io = new Server(server, {
 setupSocketHandlers(io);
 
 app.use('/api', apiRoutes);
+app.use('/api/session', sessionRoutes);
 
 app.get('/', (req, res) => {
     res.send('IPL Auction Server API is running');

@@ -17,7 +17,9 @@ router.get('/room/:roomCode', async (req, res) => {
 router.get('/room/:roomCode/results', async (req, res) => {
     try {
         const { roomCode } = req.params;
-        const room = await AuctionRoom.findOne({ roomId: roomCode }).populate('franchisesInRoom.playersAcquired.player');
+        const room = await AuctionRoom.findOne({ roomId: roomCode })
+            .populate('franchisesInRoom.franchiseId')
+            .populate('franchisesInRoom.playersAcquired.player');
 
         if (!room) {
             return res.status(404).json({ error: 'Room not found' });

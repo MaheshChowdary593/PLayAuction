@@ -1,6 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useLocation, useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import { toPng } from 'html-to-image';
+import TeamShareCard from '../components/TeamShareCard';
 
 const ResultsReveal = () => {
     const { roomCode } = useParams();
@@ -10,6 +12,9 @@ const ResultsReveal = () => {
     const [selectedTeam, setSelectedTeam] = useState(null);
     const [error, setError] = useState(null);
     const [allPlayersMap, setAllPlayersMap] = useState({});
+    const [isSharing, setIsSharing] = useState(false);
+    const [toast, setToast] = useState(null);
+    const shareRef = useRef(null);
 
     useEffect(() => {
         // Fetch players to create a fallback name map
@@ -52,6 +57,62 @@ const ResultsReveal = () => {
         fetchResults();
     }, [roomCode]);
 
+    const handleShareTeamCard = async () => {
+        if (!selectedTeam || isSharing) return;
+        setIsSharing(true);
+
+        try {
+            // Wait a bit for the hidden component to be sure it's in the DOM
+            await new Promise(resolve => setTimeout(resolve, 500));
+
+            const node = document.getElementById('team-share-card');
+            if (!node) throw new Error("Share card node not found");
+
+            // Generate PNG data URL
+            const dataUrl = await toPng(node, {
+                cacheBust: true,
+                pixelRatio: 2,
+                skipFonts: false,
+            });
+
+            if (!dataUrl) throw new Error("Failed to generate image data URL");
+
+            const fileName = `${selectedTeam.teamName.replace(/\s+/g, '_')}_Squad.png`;
+
+            // Convert dataUrl to blob
+            const response = await fetch(dataUrl);
+            const blob = await response.blob();
+            const file = new File([blob], fileName, { type: 'image/png' });
+
+            const shareData = {
+                title: `${selectedTeam.teamName} Squad - IPL Auction 2025`,
+                text: `Check out my ${selectedTeam.teamName} squad! Overall Score: ${selectedTeam.evaluation?.overallScore}/100. Star Player: ${selectedTeam.evaluation?.starPlayer}. #IPLAuction2025`,
+                files: [file]
+            };
+
+            // Check if Web Share API with files is supported
+            if (navigator.canShare && navigator.canShare(shareData)) {
+                await navigator.share(shareData);
+            } else {
+                // Fallback: Download and provide WhatsApp link
+                const link = document.createElement('a');
+                link.href = dataUrl;
+                link.download = fileName;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+
+                const whatsappMsg = encodeURIComponent(shareData.text);
+                window.open(`https://wa.me/?text=${whatsappMsg}`, '_blank');
+            }
+        } catch (err) {
+            console.error("Sharing failed detail:", err);
+            setToast({ message: `Failed to generate or share team card: ${err.message || 'Unknown error'}. Please try again.`, type: 'error' });
+        } finally {
+            setIsSharing(false);
+        }
+    };
+
     if (loading) return (
         <div className="min-h-screen bg-darkBg flex flex-col items-center justify-center text-white">
             <motion.div
@@ -74,6 +135,11 @@ const ResultsReveal = () => {
 
     return (
         <div className="min-h-screen bg-darkBg text-white p-4 sm:p-8 relative overflow-hidden font-sans">
+
+            {/* Hidden TeamShareCard for capture */}
+            <div style={{ position: 'absolute', left: '-9999px', top: '-9999px' }}>
+                <TeamShareCard team={selectedTeam} allPlayersMap={allPlayersMap} />
+            </div>
 
             {/* Background elements */}
             <div className="fixed inset-0 pointer-events-none">
@@ -168,18 +234,13 @@ const ResultsReveal = () => {
                                                 <div className="text-[8px] md:text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mt-2">Score</div>
                                             </div>
                                             <button
-                                                onClick={() => {
-                                                    const shareText = `Check out my IPL 2025 Draft for ${selectedTeam.teamName}!\nOverall Rating: ${selectedTeam.evaluation?.overallScore}/100\nStar Player: ${selectedTeam.evaluation?.starPlayer}\nBest Value: ${selectedTeam.evaluation?.bestValuePick}`;
-                                                    if (navigator.share) {
-                                                        navigator.share({ title: 'My IPL Squad', text: shareText });
-                                                    } else {
-                                                        navigator.clipboard.writeText(shareText);
-                                                        alert('Squad stats copied to clipboard!');
-                                                    }
-                                                }}
-                                                className="btn-premium w-full !py-2 !text-[10px]"
+                                                onClick={handleShareTeamCard}
+                                                disabled={isSharing}
+                                                className={`btn-premium w-full !py-2 !text-[10px] flex items-center justify-center gap-2 ${isSharing ? 'opacity-50 cursor-not-allowed' : ''}`}
                                             >
-                                                📤 Share Team Card
+                                                {isSharing ? (
+                                                    <span className="animate-spin h-3 w-3 border-2 border-white/30 border-t-white rounded-full"></span>
+                                                ) : '📤'} Share Team Card
                                             </button>
                                         </div>
                                     </div>
@@ -256,6 +317,83 @@ const ResultsReveal = () => {
                     </div>
                 </div>
             </div>
+
+            {/* Toast Notification Modal */}
+            <AnimatePresence>
+                {toast && (
+                    <motion.div
+                        initial={{ opacity: 0, y: -40, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: -30, scale: 0.95 }}
+                        className="fixed top-6 left-1/2 -translate-x-1/2 z-[250] w-full max-w-sm px-4"
+                    >
+                        <div
+                            className={`flex items-start gap-4 p-5 rounded-2xl border shadow-2xl backdrop-blur-md ${toast.type === "error"
+                                ? "bg-red-500/10 border-red-500/30"
+                                : toast.type === "warning"
+                                    ? "bg-yellow-500/10 border-yellow-500/30"
+                                    : toast.type === "success"
+                                        ? "bg-green-500/10 border-green-500/30"
+                                        : "bg-blue-500/10 border-blue-500/30"
+                                }`}
+                        >
+                            {/* Icon */}
+                            <div
+                                className={`shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${toast.type === "error"
+                                    ? "bg-red-500/20"
+                                    : toast.type === "warning"
+                                        ? "bg-yellow-500/20"
+                                        : toast.type === "success"
+                                            ? "bg-green-500/20"
+                                            : "bg-blue-500/20"
+                                    }`}
+                            >
+                                {toast.type === "error" ? (
+                                    <svg className="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                ) : toast.type === "success" ? (
+                                    <svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" />
+                                    </svg>
+                                ) : toast.type === "warning" ? (
+                                    <svg className="w-5 h-5 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+                                    </svg>
+                                ) : (
+                                    <svg className="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                )}
+                            </div>
+
+                            {/* Message */}
+                            <p
+                                className={`flex-1 text-sm font-bold leading-relaxed ${toast.type === "error"
+                                    ? "text-red-300"
+                                    : toast.type === "warning"
+                                        ? "text-yellow-300"
+                                        : toast.type === "success"
+                                            ? "text-green-300"
+                                            : "text-blue-200"
+                                    }`}
+                            >
+                                {toast.message}
+                            </p>
+
+                            {/* Dismiss */}
+                            <button
+                                onClick={() => setToast(null)}
+                                className="shrink-0 text-slate-500 hover:text-white transition-colors mt-0.5"
+                            >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     );
 };

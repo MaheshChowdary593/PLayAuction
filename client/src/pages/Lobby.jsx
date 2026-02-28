@@ -1,119 +1,40 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate, useLocation, useParams } from "react-router-dom";
 import { useSocket } from "../context/SocketContext";
+import { useSession } from "../context/SessionContext";
+import { Copy, Check } from "lucide-react";
+import { FaWhatsapp } from "react-icons/fa";
 import { motion, AnimatePresence } from "framer-motion";
 
 const IPL_TEAMS = [
-  {
-    id: "MI",
-    name: "Mumbai Indians",
-    color: "#004BA0",
-    logoUrl:
-      "https://upload.wikimedia.org/wikipedia/en/thumb/c/cd/Mumbai_Indians_Logo.svg/1200px-Mumbai_Indians_Logo.svg.png",
-  },
-  {
-    id: "CSK",
-    name: "Chennai Super Kings",
-    color: "#FFFF3C",
-    logoUrl:
-      "https://upload.wikimedia.org/wikipedia/en/thumb/2/2b/Chennai_Super_Kings_Logo.svg/1200px-Chennai_Super_Kings_Logo.svg.png",
-  },
-  {
-    id: "RCB",
-    name: "Royal Challengers Bengaluru",
-    color: "#EC1C24",
-    logoUrl:
-      "https://upload.wikimedia.org/wikipedia/en/thumb/d/d4/Royal_Challengers_Bengaluru_Logo.svg/330px-Royal_Challengers_Bengaluru_Logo.svg.png",
-  },
-  {
-    id: "KKR",
-    name: "Kolkata Knight Riders",
-    color: "#2E0854",
-    logoUrl:
-      "https://upload.wikimedia.org/wikipedia/en/thumb/4/4c/Kolkata_Knight_Riders_Logo.svg/1200px-Kolkata_Knight_Riders_Logo.svg.png",
-  },
-  {
-    id: "DC",
-    name: "Delhi Capitals",
-    color: "#00008B",
-    logoUrl:
-      "https://upload.wikimedia.org/wikipedia/en/thumb/2/2f/Delhi_Capitals.svg/500px-Delhi_Capitals.svg.png",
-  },
-  {
-    id: "PBKS",
-    name: "Punjab Kings",
-    color: "#ED1B24",
-    logoUrl:
-      "https://upload.wikimedia.org/wikipedia/en/thumb/d/d4/Punjab_Kings_Logo.svg/1200px-Punjab_Kings_Logo.svg.png",
-  },
-  {
-    id: "RR",
-    name: "Rajasthan Royals",
-    color: "#EA1A85",
-    logoUrl: "https://scores.iplt20.com/ipl/teamlogos/RR.png",
-  },
-  {
-    id: "SRH",
-    name: "Sunrisers Hyderabad",
-    color: "#FF822A",
-    logoUrl:
-      "https://upload.wikimedia.org/wikipedia/en/thumb/5/51/Sunrisers_Hyderabad_Logo.svg/500px-Sunrisers_Hyderabad_Logo.svg.png",
-  },
-  {
-    id: "LSG",
-    name: "Lucknow Super Giants",
-    color: "#00D1FF",
-    logoUrl:
-      "https://upload.wikimedia.org/wikipedia/en/thumb/a/a9/Lucknow_Super_Giants_IPL_Logo.svg/1200px-Lucknow_Super_Giants_IPL_Logo.svg.png",
-  },
-  {
-    id: "GT",
-    name: "Gujarat Titans",
-    color: "#1B2133",
-    logoUrl:
-      "https://upload.wikimedia.org/wikipedia/en/thumb/0/09/Gujarat_Titans_Logo.svg/1200px-Gujarat_Titans_Logo.svg.png",
-  },
-  {
-    id: "DCG",
-    name: "Deccan Chargers",
-    color: "#D1E1EF",
-    logoUrl:
-      "https://upload.wikimedia.org/wikipedia/en/a/a6/HyderabadDeccanChargers.png",
-  },
-  {
-    id: "KTK",
-    name: "Kochi Tuskers Kerala",
-    color: "#F15A24",
-    logoUrl:
-      "https://upload.wikimedia.org/wikipedia/en/thumb/9/96/Kochi_Tuskers_Kerala_Logo.svg/500px-Kochi_Tuskers_Kerala_Logo.svg.png",
-  },
-  {
-    id: "PWI",
-    name: "Pune Warriors India",
-    color: "#40E0D0",
-    logoUrl:
-      "https://upload.wikimedia.org/wikipedia/en/4/4a/Pune_Warriors_India_IPL_Logo.png",
-  },
-  {
-    id: "RPS",
-    name: "Rising Pune Supergiant",
-    color: "#D11D70",
-    logoUrl:
-      "https://upload.wikimedia.org/wikipedia/en/9/9a/Rising_Pune_Supergiant.png",
-  },
-  {
-    id: "GL",
-    name: "Gujarat Lions",
-    color: "#E04F16",
-    logoUrl: "https://upload.wikimedia.org/wikipedia/en/c/c4/Gujarat_Lions.png",
-  },
+  { id: 'MI', name: 'Mumbai Indians', color: '#004BA0', logoUrl: 'https://upload.wikimedia.org/wikipedia/en/thumb/c/cd/Mumbai_Indians_Logo.svg/1200px-Mumbai_Indians_Logo.svg.png' },
+  { id: 'CSK', name: 'Chennai Super Kings', color: '#FFFF3C', logoUrl: 'https://upload.wikimedia.org/wikipedia/en/thumb/2/2b/Chennai_Super_Kings_Logo.svg/1200px-Chennai_Super_Kings_Logo.svg.png' },
+  { id: 'RCB', name: 'Royal Challengers Bengaluru', color: '#EC1C24', logoUrl: 'https://upload.wikimedia.org/wikipedia/en/thumb/d/d4/Royal_Challengers_Bengaluru_Logo.svg/1200px-Royal_Challengers_Bengaluru_Logo.svg.png' },
+  { id: 'KKR', name: 'Kolkata Knight Riders', color: '#2E0854', logoUrl: 'https://upload.wikimedia.org/wikipedia/en/thumb/4/4c/Kolkata_Knight_Riders_Logo.svg/1200px-Kolkata_Knight_Riders_Logo.svg.png' },
+  { id: 'DC', name: 'Delhi Capitals', color: '#00008B', logoUrl: 'https://upload.wikimedia.org/wikipedia/en/thumb/2/2f/Delhi_Capitals.svg/1200px-Delhi_Capitals.svg.png' },
+  { id: 'PBKS', name: 'Punjab Kings', color: '#ED1B24', logoUrl: 'https://upload.wikimedia.org/wikipedia/en/thumb/d/d4/Punjab_Kings_Logo.svg/1200px-Punjab_Kings_Logo.svg.png' },
+  { id: 'RR', name: 'Rajasthan Royals', color: '#EA1A85', logoUrl: 'https://scores.iplt20.com/ipl/teamlogos/RR.png' },
+  { id: 'SRH', name: 'Sunrisers Hyderabad', color: '#FF822A', logoUrl: 'https://upload.wikimedia.org/wikipedia/en/thumb/1/1c/Sunrisers_Hyderabad_Logo.svg/1200px-Sunrisers_Hyderabad_Logo.svg.png' },
+  { id: 'LSG', name: 'Lucknow Super Giants', color: '#00D1FF', logoUrl: 'https://upload.wikimedia.org/wikipedia/en/thumb/a/a9/Lucknow_Super_Giants_IPL_Logo.svg/1200px-Lucknow_Super_Giants_IPL_Logo.svg.png' },
+  { id: 'GT', name: 'Gujarat Titans', color: '#1B2133', logoUrl: 'https://upload.wikimedia.org/wikipedia/en/thumb/0/09/Gujarat_Titans_Logo.svg/1200px-Gujarat_Titans_Logo.svg.png' },
+  { id: 'DCG', name: 'Deccan Chargers', color: '#D1E1EF', logoUrl: 'https://upload.wikimedia.org/wikipedia/en/thumb/a/a6/HyderabadDeccanChargers.png/500px-HyderabadDeccanChargers.png' },
+  { id: 'KTK', name: 'Kochi Tuskers Kerala', color: '#F15A24', logoUrl: 'https://upload.wikimedia.org/wikipedia/en/thumb/9/96/Kochi_Tuskers_Kerala_Logo.svg/1200px-Kochi_Tuskers_Kerala_Logo.svg.png' },
+  { id: 'PWI', name: 'Pune Warriors India', color: '#40E0D0', logoUrl: 'https://upload.wikimedia.org/wikipedia/en/thumb/4/4a/Pune_Warriors_India_IPL_Logo.png/500px-Pune_Warriors_India_IPL_Logo.png' },
+  { id: 'RPS', name: 'Rising Pune Supergiant', color: '#D11D70', logoUrl: 'https://upload.wikimedia.org/wikipedia/en/thumb/2/27/Rising_Pune_Supergiant.png/1200px-Rising_Pune_Supergiant.png' },
+  { id: 'GL', name: 'Gujarat Lions', color: '#E04F16', logoUrl: 'https://upload.wikimedia.org/wikipedia/en/thumb/c/c4/Gujarat_Lions.png/1200px-Gujarat_Lions.png' },
 ];
 
 const Lobby = () => {
   const [selectedTeamId, setSelectedTeamId] = useState("");
-  const [playerName, setPlayerName] = useState(
-    localStorage.getItem("playerName") || "",
-  );
+  // playerName, userId, and initSession come from the secure session context
+  const { playerName, userId, initSession } = useSession();
+  const [localNameInput, setLocalNameInput] = useState(playerName || "");
+  useEffect(() => {
+    if (playerName && !localNameInput) {
+      setLocalNameInput(playerName);
+    }
+  }, [playerName]);
+
   const [roomCodeInput, setRoomCodeInput] = useState("");
   const [isJoined, setIsJoined] = useState(false);
   const [roomState, setRoomState] = useState(null);
@@ -138,24 +59,56 @@ const Lobby = () => {
   const [kickTarget, setKickTarget] = useState(null);
 
   const [creatingRoomType, setCreatingRoomType] = useState("private"); // 'private' or 'public'
+  const [isDirectJoining, setIsDirectJoining] = useState(false);
+  const [isAutoJoining, setIsAutoJoining] = useState(false);
 
   const socket = useSocket();
   const navigate = useNavigate();
   const location = useLocation();
+  const { roomCode: urlRoomCode } = useParams();
+
+  const [copied, setCopied] = useState(false);
+
+  // Auto-fill room code if joined via standard link
+  useEffect(() => {
+    if (urlRoomCode) {
+      const code = urlRoomCode.toUpperCase();
+      setRoomCodeInput(code);
+      setIsDirectJoining(true);
+    } else {
+      setIsDirectJoining(false);
+    }
+  }, [urlRoomCode]);
+
+  const handleCopyLink = () => {
+    if (!roomState?.roomCode) return;
+    const protocol = window.location.protocol;
+    const host = window.location.host;
+    const link = `${protocol}//${host}/join/${roomState.roomCode}`;
+    navigator.clipboard.writeText(link);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleShareWhatsapp = () => {
+    if (!roomState?.roomCode) return;
+    const protocol = window.location.protocol;
+    const host = window.location.host;
+    const link = `${protocol}//${host}/join/${roomState.roomCode}`;
+    const text = `Join my IPL Auction room!\n\nClick the link to enter: ${link}\n\n(If the link doesn't work locally, open ${protocol}//${host} and join with Room Code: ${roomState.roomCode})`;
+    const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(text)}`;
+    window.open(whatsappUrl, '_blank');
+  };
 
   // Auto-join hook when redirecting from /public-rooms
   useEffect(() => {
     if (location.state?.autoJoinRoomCode && playerName && socket) {
-      socket.emit("join_room", {
-        roomCode: location.state.autoJoinRoomCode,
-        playerName,
-      });
+      socket.emit("join_room", { roomCode: location.state.autoJoinRoomCode });
       navigate("/", { replace: true, state: {} });
     }
     if (location.state?.autoSpectateRoomCode && playerName && socket) {
       socket.emit("join_room", {
         roomCode: location.state.autoSpectateRoomCode,
-        playerName,
         asSpectator: true,
       });
       navigate("/", { replace: true, state: {} });
@@ -175,6 +128,7 @@ const Lobby = () => {
       setRoomState(state);
       setIsJoined(true);
       setError("");
+      setIsAutoJoining(false); // Reset auto-join state
       // Detect if the current user is a spectator (not a team owner)
       const amSpectator = state.spectators?.some((s) => s.socketId === socket.id);
       setIsSpectatorMode(amSpectator || false);
@@ -214,13 +168,13 @@ const Lobby = () => {
       setIsJoined(false);
       setRoomState(null);
       setSelectedTeamId("");
-      setHasClaimedTeam(false);
       setShowLeaveConfirm(false);
       setError("The Host has disbanded the room.");
     });
 
     socket.on("error", (msg) => {
       setError(msg);
+      setIsAutoJoining(false); // Reset auto-join state on error
     });
 
     socket.on("auction_started", ({ state }) => {
@@ -232,7 +186,6 @@ const Lobby = () => {
     socket.on("kicked_from_room", () => {
       setIsJoined(false);
       setRoomState(null);
-      setHasClaimedTeam(false);
       setError("You have been removed from the room by the host.");
     });
 
@@ -255,35 +208,65 @@ const Lobby = () => {
     };
   }, [socket, navigate]);
 
-  useEffect(() => {
-    if (playerName) {
-      localStorage.setItem("playerName", playerName);
+  /**
+   * Ensures the socket carries the latest JWT before emitting.
+   * On a brand-new session (no token when socket was created), triggers a reconnect.
+   */
+  const reconnectSocketIfNeeded = (newToken) => {
+    if (socket && (!socket.auth?.token) && newToken) {
+      socket.auth = { token: newToken };
+      socket.disconnect().connect();
     }
-  }, [playerName]);
-
-  const handleCreate = () => {
-    if (!playerName) return setError("Please enter your name");
-    socket.emit("create_room", { playerName, roomType: creatingRoomType });
   };
 
-  const handleJoin = (codeToJoin = roomCodeInput) => {
-    if (!playerName || !codeToJoin)
-      return setError("Name and Room Code required");
-    socket.emit("join_room", { roomCode: codeToJoin, playerName });
+  const handleCreate = async () => {
+    if (!localNameInput.trim()) return setError("Enter your name first");
+    try {
+      setIsAutoJoining(true);
+      const data = await initSession(localNameInput.trim());
+      reconnectSocketIfNeeded(data.token);
+      // Small delay to let the reconnect finish the handshake
+      setTimeout(() => socket.emit("create_room", { roomType: creatingRoomType }), 300);
+    } catch (e) {
+      setError(e.message || 'Failed to start session');
+      setIsAutoJoining(false);
+    }
   };
 
-  const handleSpectate = (codeToJoin = roomCodeInput) => {
-    if (!playerName || !codeToJoin)
+  const handleJoin = async (codeToJoin = roomCodeInput) => {
+    if (!localNameInput.trim() || !codeToJoin)
       return setError("Name and Room Code required");
-    socket.emit("join_room", { roomCode: codeToJoin, playerName, asSpectator: true });
+    try {
+      setIsAutoJoining(true);
+      const data = await initSession(localNameInput.trim());
+      reconnectSocketIfNeeded(data.token);
+      setTimeout(() => socket.emit("join_room", { roomCode: codeToJoin }), 300);
+    } catch (e) {
+      setError(e.message || 'Failed to start session');
+      setIsAutoJoining(false);
+    }
+  };
+
+  const handleSpectate = async (codeToJoin = roomCodeInput) => {
+    if (!localNameInput.trim() || !codeToJoin)
+      return setError("Name and Room Code required");
+    try {
+      setIsAutoJoining(true);
+      const data = await initSession(localNameInput.trim());
+      reconnectSocketIfNeeded(data.token);
+      setTimeout(() => socket.emit("join_room", { roomCode: codeToJoin, asSpectator: true }), 300);
+    } catch (e) {
+      setError(e.message || 'Failed to start session');
+      setIsAutoJoining(false);
+    }
   };
 
   const handleClaimTeam = () => {
     if (!selectedTeamId) return setError("Select a franchise first");
+    // roomCode is determined server-side from the socket's joined rooms
     socket.emit("claim_team", {
-      roomCode: roomState.roomCode,
-      playerName,
-      teamId: selectedTeamId,
+      roomCode: roomState?.roomCode,
+      teamId: selectedTeamId
     });
   };
 
@@ -296,9 +279,8 @@ const Lobby = () => {
   };
 
   const confirmLeaveRoom = () => {
-    // Tell the server we are leaving the room to clean up teams and host status
     if (roomState?.roomCode) {
-      socket.emit("leave_room", { roomCode: roomState.roomCode, playerName });
+      socket.emit("leave_room", { roomCode: roomState.roomCode });
     }
 
     // Reset local UI state
@@ -310,22 +292,18 @@ const Lobby = () => {
     setIsSpectatorMode(false);
   };
 
-  const myTeam = roomState?.teams?.find((t) => t.ownerSocketId === socket.id);
-  const [hasClaimedTeam, setHasClaimedTeam] = useState(false);
-
-  useEffect(() => {
-    if (myTeam) {
-      setHasClaimedTeam(true);
-    }
-  }, [myTeam]);
+  const myTeam = roomState?.teams?.find((t) =>
+    (socket?.id && t.ownerSocketId === socket.id) ||
+    (userId && t.ownerUserId === userId)
+  );
+  const hasClaimedTeam = !!myTeam;
+  const isHost = roomState?.host === socket?.id || (userId && roomState?.hostUserId === userId);
 
   // Use available teams from state if present, otherwise fallback to IPL_TEAMS
   const displayTeams = availableTeamsForRoom || IPL_TEAMS;
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center p-6 relative overflow-hidden bg-darkBg">
-      {/* Background elements */}
-      <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-blue-900/10 to-transparent pointer-events-none"></div>
+    <div className="h-screen w-screen flex items-center justify-center p-6 relative overflow-hidden">
 
       <div className="w-full max-w-4xl grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12 items-center relative z-10">
         {/* Brand Side */}
@@ -401,78 +379,139 @@ const Lobby = () => {
           <AnimatePresence mode="wait">
             {!isJoined ? (
               <motion.div
-                key="entry"
+                key={isDirectJoining ? "direct" : "entry"}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.95 }}
                 className="space-y-6"
               >
+                {isDirectJoining && (
+                  <div className="text-center space-y-2 mb-8">
+                    <h2 className="text-[10px] font-black text-blue-400 uppercase tracking-[0.3em]">
+                      Direct Invitation
+                    </h2>
+                    <div className="text-4xl font-black text-white tracking-[0.1em]">
+                      {roomCodeInput}
+                    </div>
+                  </div>
+                )}
+
                 <div className="space-y-4">
                   <div className="space-y-2">
                     <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">
-                      The Gaffer's Name
+                      {isDirectJoining ? "Identify Yourself" : "The Gaffer's Name"}
                     </label>
-                    <input
-                      type="text"
-                      placeholder="Enter your name..."
-                      className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 focus:outline-none focus:border-blue-500/50 text-white font-bold transition-all"
-                      value={playerName}
-                      onChange={(e) => setPlayerName(e.target.value)}
-                    />
+                    <div className="relative group">
+                      <input
+                        type="text"
+                        placeholder="Enter your name..."
+                        className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 focus:outline-none focus:border-blue-500/50 text-white font-bold transition-all"
+                        value={localNameInput}
+                        onChange={(e) => setLocalNameInput(e.target.value)}
+                      />
+                      {playerName && playerName === localNameInput && (
+                        <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-3">
+                          <span className="hidden md:inline-block text-[8px] font-black text-blue-400 uppercase tracking-widest bg-blue-500/10 px-2 py-1 rounded-md border border-blue-500/20">
+                            Session Active
+                          </span>
+                          <button
+                            onClick={() => {
+                              localStorage.removeItem('ipl_session_token');
+                              window.location.reload();
+                            }}
+                            className="text-[8px] font-black text-red-500 hover:text-red-400 uppercase tracking-widest bg-red-500/10 px-2 py-1 rounded-md border border-red-500/20 transition-colors"
+                            title="Sign out and join as a different player"
+                          >
+                            Not you?
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </div>
 
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => setCreatingRoomType("private")}
-                      className={`flex-1 py-3 rounded-xl border font-bold text-[10px] tracking-widest uppercase transition-all ${creatingRoomType === "private" ? "bg-purple-600 border-purple-500 text-white" : "bg-white/5 border-white/10 text-slate-400 hover:bg-white/10"}`}
-                    >
-                      Private Room
-                    </button>
-                    <button
-                      onClick={() => setCreatingRoomType("public")}
-                      className={`flex-1 py-3 rounded-xl border font-bold text-[10px] tracking-widest uppercase transition-all ${creatingRoomType === "public" ? "bg-blue-600 border-blue-500 text-white" : "bg-white/5 border-white/10 text-slate-400 hover:bg-white/10"}`}
-                    >
-                      Public Room
-                    </button>
-                  </div>
-                  <button
-                    onClick={handleCreate}
-                    className="w-full btn-premium py-4 mt-2"
-                  >
-                    CREATE {creatingRoomType.toUpperCase()} ROOM
-                  </button>
-                </div>
+                  {!isDirectJoining ? (
+                    <>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => setCreatingRoomType("private")}
+                          className={`flex-1 py-3 rounded-xl border font-bold text-[10px] tracking-widest uppercase transition-all ${creatingRoomType === "private" ? "bg-purple-600 border-purple-500 text-white" : "bg-white/5 border-white/10 text-slate-400 hover:bg-white/10"}`}
+                        >
+                          Private Room
+                        </button>
+                        <button
+                          onClick={() => setCreatingRoomType("public")}
+                          className={`flex-1 py-3 rounded-xl border font-bold text-[10px] tracking-widest uppercase transition-all ${creatingRoomType === "public" ? "bg-blue-600 border-blue-500 text-white" : "bg-white/5 border-white/10 text-slate-400 hover:bg-white/10"}`}
+                        >
+                          Public Room
+                        </button>
+                      </div>
+                      <button
+                        onClick={handleCreate}
+                        className="w-full btn-premium py-4 mt-2"
+                      >
+                        CREATE {creatingRoomType.toUpperCase()} ROOM
+                      </button>
 
-                <div className="flex items-center gap-4 my-6">
-                  <div className="h-px bg-white/10 flex-1"></div>
-                  <span className="text-[10px] font-black text-slate-600 uppercase tracking-widest">
-                    OR JOIN EXISTING
-                  </span>
-                  <div className="h-px bg-white/10 flex-1"></div>
-                </div>
+                      <div className="flex items-center gap-4 my-6">
+                        <div className="h-px bg-white/10 flex-1"></div>
+                        <span className="text-[10px] font-black text-slate-600 uppercase tracking-widest">
+                          OR JOIN EXISTING
+                        </span>
+                        <div className="h-px bg-white/10 flex-1"></div>
+                      </div>
 
-                <div className="flex flex-col sm:flex-row gap-2">
-                  <input
-                    type="text"
-                    placeholder="Enter Room Code"
-                    className="w-full sm:w-2/3 bg-white/5 border border-white/10 rounded-2xl px-4 py-4 text-center text-white font-black tracking-[0.2em] focus:outline-none focus:border-purple-500/50 uppercase"
-                    value={roomCodeInput}
-                    onChange={(e) =>
-                      setRoomCodeInput(e.target.value.toUpperCase())
-                    }
-                  />
-                  <button
-                    onClick={() => handleJoin(roomCodeInput)}
-                    className="w-full sm:flex-1 bg-blue-600 hover:bg-blue-500 text-white font-black py-4 rounded-2xl transition-all uppercase text-[10px] tracking-wider shadow-[0_0_20px_rgba(37,99,235,0.4)]"
-                  >
-                    JOIN
-                  </button>
-                  <button
-                    onClick={() => handleSpectate(roomCodeInput)}
-                    className="w-full sm:flex-1 bg-purple-600/20 hover:bg-purple-600/40 border border-purple-500/30 text-purple-400 hover:text-purple-300 font-black py-4 rounded-2xl transition-all uppercase text-[10px] tracking-wider"
-                  >
-                    👁 SPECTATE
-                  </button>
+                      <div className="flex flex-col sm:flex-row gap-2">
+                        <input
+                          type="text"
+                          placeholder="Enter Room Code"
+                          className="w-full sm:w-2/3 bg-white/5 border border-white/10 rounded-2xl px-4 py-4 text-center text-white font-black tracking-[0.2em] focus:outline-none focus:border-purple-500/50 uppercase"
+                          value={roomCodeInput}
+                          onChange={(e) =>
+                            setRoomCodeInput(e.target.value.toUpperCase())
+                          }
+                        />
+                        <button
+                          onClick={() => handleJoin(roomCodeInput)}
+                          className="w-full sm:flex-1 bg-blue-600 hover:bg-blue-500 text-white font-black py-4 rounded-2xl transition-all uppercase text-[10px] tracking-wider shadow-[0_0_20px_rgba(37,99,235,0.4)]"
+                        >
+                          JOIN
+                        </button>
+                        <button
+                          onClick={() => handleSpectate(roomCodeInput)}
+                          className="w-full sm:flex-1 bg-purple-600/20 hover:bg-purple-600/40 border border-purple-500/30 text-purple-400 hover:text-purple-300 font-black py-4 rounded-2xl transition-all uppercase text-[10px] tracking-wider"
+                        >
+                          👁 SPECTATE
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="flex flex-col gap-3">
+                      <button
+                        onClick={() => handleJoin(roomCodeInput)}
+                        disabled={isAutoJoining}
+                        className="w-full bg-blue-600 hover:bg-blue-500 text-white font-black py-5 rounded-2xl transition-all uppercase text-[12px] tracking-widest shadow-[0_0_20px_rgba(37,99,235,0.4)] disabled:opacity-50"
+                      >
+                        {isAutoJoining ? "JOINING..." : `ENTER ARENA "${roomCodeInput}"`}
+                      </button>
+                      <button
+                        onClick={() => handleSpectate(roomCodeInput)}
+                        disabled={isAutoJoining}
+                        className="w-full bg-purple-600/20 hover:bg-purple-600/40 border border-purple-500/30 text-purple-400 hover:text-purple-300 font-black py-4 rounded-2xl transition-all uppercase text-[10px] tracking-wider disabled:opacity-50"
+                      >
+                        👁 SPECTATE ONLY
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          setIsDirectJoining(false);
+                          navigate("/", { replace: true });
+                        }}
+                        className="text-[10px] font-black text-slate-500 hover:text-white uppercase tracking-[0.2em] transition-colors mt-4"
+                      >
+                        ← Back to Main Lobby
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 {error && (
@@ -481,33 +520,34 @@ const Lobby = () => {
                   </p>
                 )}
 
-                {/* Public Rooms Redirect Toggle */}
-                <div className="mt-8 pt-6 border-t border-white/10">
-                  <button
-                    onClick={() => navigate("/public-rooms")}
-                    className="w-full flex items-center justify-between p-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl transition-all group"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
-                      <span className="text-[10px] font-black text-green-400 uppercase tracking-[0.2em] group-hover:text-green-300 transition-colors">
-                        Explore Public Caucuses
-                      </span>
-                    </div>
-                    <svg
-                      className="w-5 h-5 text-slate-400 transform -rotate-90 group-hover:translate-x-1 transition-transform"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
+                {!isDirectJoining && (
+                  <div className="mt-8 pt-6 border-t border-white/10">
+                    <button
+                      onClick={() => navigate("/public-rooms")}
+                      className="w-full flex items-center justify-between p-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl transition-all group"
                     >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth="2"
-                        d="M19 9l-7 7-7-7"
-                      />
-                    </svg>
-                  </button>
-                </div>
+                      <div className="flex items-center gap-3">
+                        <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+                        <span className="text-[10px] font-black text-green-400 uppercase tracking-[0.2em] group-hover:text-green-300 transition-colors">
+                          Explore Public Caucuses
+                        </span>
+                      </div>
+                      <svg
+                        className="w-5 h-5 text-slate-400 transform -rotate-90 group-hover:translate-x-1 transition-transform"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth="2"
+                          d="M19 9l-7 7-7-7"
+                        />
+                      </svg>
+                    </button>
+                  </div>
+                )}
               </motion.div>
             ) : (
               <motion.div
@@ -537,12 +577,28 @@ const Lobby = () => {
                   </svg>
                 </button>
 
-                <div className="text-center pt-2">
+                <div className="text-center pt-2 relative">
                   <h2 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] mb-2 mt-4 md:mt-0">
                     Room Assigned
                   </h2>
-                  <div className="text-5xl font-black text-white tracking-[0.1em]">
-                    {roomState.roomCode}
+                  <div className="flex items-center justify-center gap-3">
+                    <div className="text-5xl font-black text-white tracking-[0.1em]">
+                      {roomState.roomCode}
+                    </div>
+                    <button
+                      onClick={handleCopyLink}
+                      className="p-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-slate-400 hover:text-white transition-all focus:outline-none"
+                      title="Copy Join Link"
+                    >
+                      {copied ? <Check className="w-5 h-5 text-green-400" /> : <Copy className="w-5 h-5" />}
+                    </button>
+                    <button
+                      onClick={handleShareWhatsapp}
+                      className="p-2 bg-green-500/10 hover:bg-green-500/20 border border-green-500/20 rounded-xl text-green-500 hover:text-green-400 transition-all focus:outline-none"
+                      title="Share via WhatsApp"
+                    >
+                      <FaWhatsapp className="w-5 h-5" />
+                    </button>
                   </div>
                 </div>
 
@@ -683,7 +739,7 @@ const Lobby = () => {
                             </div>
                           </div>
 
-                          {roomState.host === socket.id &&
+                          {isHost &&
                             t.ownerSocketId !== socket.id && (
                               <button
                                 onClick={() =>
@@ -715,7 +771,7 @@ const Lobby = () => {
                     </div>
 
                     {/* Pending Requests for Host */}
-                    {roomState.host === socket.id &&
+                    {isHost &&
                       joinRequests.length > 0 && (
                         <div className="mt-8 space-y-4">
                           <h3 className="text-[10px] font-black text-yellow-500 uppercase tracking-widest ml-1 animate-pulse flex items-center gap-2">
@@ -796,8 +852,8 @@ const Lobby = () => {
                                 </div>
                                 <span
                                   className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-slate-900 ${onlineMap[s.socketId] === false
-                                      ? "bg-red-500 shadow-[0_0_6px_#ef4444]"
-                                      : "bg-green-500 shadow-[0_0_6px_#22c55e]"
+                                    ? "bg-red-500 shadow-[0_0_6px_#ef4444]"
+                                    : "bg-green-500 shadow-[0_0_6px_#22c55e]"
                                     }`}
                                   title={onlineMap[s.socketId] === false ? "Offline" : "Online"}
                                 />
@@ -816,7 +872,7 @@ const Lobby = () => {
                       </div>
                     )}
 
-                    {roomState.host === socket.id && (
+                    {isHost && (
                       <div className="mt-8 space-y-4">
                         <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">
                           Auction Timer Settings
@@ -845,7 +901,7 @@ const Lobby = () => {
                       </div>
                     )}
 
-                    {roomState.host === socket.id ? (
+                    {isHost ? (
                       <button
                         onClick={handleStart}
                         className="w-full btn-premium bg-white shadow-[0_0_50px_rgba(255,255,255,0.2)] mt-6"
@@ -968,7 +1024,7 @@ const Lobby = () => {
                   </h3>
                   <p className="text-slate-400 text-sm font-medium">
                     Are you sure you want to{" "}
-                    {roomState?.host === socket.id &&
+                    {isHost &&
                       roomState?.status === "Lobby"
                       ? "disband this waiting room"
                       : "leave this waiting room"}

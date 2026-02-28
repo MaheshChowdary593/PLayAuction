@@ -1,9 +1,48 @@
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-const evaluateTeam = async (team) => {
-    const model = genAI.getGenerativeModel({ model: 'gemini-flash-latest' });
+const validateSquad = (team) => {
+    const players = team.playersAcquired;
+    const squadSize = players.length;
 
+    if (squadSize < 17) return { valid: false, reason: `Squad has only ${squadSize} players. Minimum 17 required for evaluation.` };
+    if (squadSize > 25) return { valid: false, reason: `Squad has ${squadSize} players. Maximum 25 allowed.` };
+
+    let wks = 0;
+    let pureBowlers = 0;
+    let overseas = 0;
+
+    players.forEach(p => {
+        const role = (p.role || '').toLowerCase().trim();
+        const nation = (p.nationality || '').toLowerCase().trim();
+
+        if (role.includes('keep') || role.includes('wk')) wks++;
+        // Pure bowler means role contains bowl but NOT all-rounder
+        if (role.includes('bowl') && !role.includes('all')) pureBowlers++;
+        if (nation && nation !== 'india') overseas++;
+    });
+
+    if (wks < 2) return { valid: false, reason: `Squad has only ${wks} Wicketkeeper(s). Minimum 2 required.` };
+    if (pureBowlers < 5) return { valid: false, reason: `Squad has only ${pureBowlers} pure Bowler(s). Minimum 5 required.` };
+    if (overseas > 8) return { valid: false, reason: `Squad has ${overseas} Overseas players. Maximum 8 allowed.` };
+
+    return { valid: true };
+};
+
+const evaluateTeam = async (team) => {
+    const validation = validateSquad(team);
+    if (!validation.valid) {
+        console.log(`--- Evaluation Disqualified for ${team.teamName}: ${validation.reason} ---`);
+        return {
+            battingScore: 0, bowlingScore: 0, balanceScore: 0, impactScore: 0, overallScore: 0,
+            starPlayer: "N/A", hiddenGem: "N/A", playing11: [],
+            tacticalVerdict: `DISQUALIFIED: ${validation.reason}`,
+            weakness: validation.reason,
+            historicalContext: "Failed to meet mandatory squad composition requirements."
+        };
+    }
+
+    const model = genAI.getGenerativeModel({ model: 'gemini-flash-latest' });
     const prompt = `
 You are a cynical, world-class T20 Franchise Consultant known for your brutal honesty and "High-Performance or Bust" attitude. You despise mediocrity and value tactical perfection.
 
@@ -132,20 +171,48 @@ const evaluateAllTeams = async (teamsData) => {
     // Process all teams in parallel
     const evaluations = await Promise.all(
         teamsData.map(async (team) => {
-            // If playing15 is set, only evaluate those players
-            // Otherwise use playersAcquired
-            const squadToEvaluate = (team.playing15 && team.playing15.length > 0)
-                ? team.playersAcquired.filter(p => team.playing15.includes(String(p.id)))
-                : team.playersAcquired;
+            // 1. Validate the FULL SQUAD first
+            const validation = validateSquad(team);
 
+            if (!validation.valid) {
+                console.log(`--- EVALUATION DISQUALIFIED FOR ${team.teamName}: ${validation.reason} ---`);
+                return {
+                    ...team,
+                    evaluation: {
+                        battingScore: 0,
+                        bowlingScore: 0,
+                        balanceScore: 0,
+                        impactScore: 0,
+                        overallScore: 0,
+                        starPlayer: "N/A",
+                        hiddenGem: "N/A",
+                        playing11: [],
+                        tacticalVerdict: `DISQUALIFIED: ${validation.reason}`,
+                        weakness: validation.reason,
+                        historicalContext: "Failed to meet mandatory squad composition requirements."
+                    }
+                };
+            }
+
+            // 2. Identify the Playing 15 for AI analysis (already handled by auctionEngine timeout logic if needed)
+            const playing15Ids = (team.playing15 && team.playing15.length > 0)
+                ? team.playing15.map(id => String(id))
+                : team.playersAcquired.slice(0, 15).map(p => String(p.id));
+
+            const squadToEvaluate = team.playersAcquired.filter(p => playing15Ids.includes(p.id));
+
+            // Heuristic score for fallback
             const hScore = calculateHeuristicScore({ ...team, playersAcquired: squadToEvaluate });
+
             let evaluation;
             try {
-                console.log(`--- EVALUATING SQUAD FOR ${team.teamName} (${squadToEvaluate.length} players) ---`);
+                console.log(`--- EVALUATING TOP 15 FOR ${team.teamName} (${squadToEvaluate.length} players) ---`);
                 evaluation = await evaluateTeam({ ...team, playersAcquired: squadToEvaluate });
-                // Blend with heuristic or ensure overallScore isn't 0 if AI fails
+
+                // Ensure overallScore isn't 0 if AI fails but validation passed
                 if (evaluation.overallScore === 0) evaluation.overallScore = hScore;
             } catch (e) {
+                console.error(`Evaluation Error for ${team.teamName}:`, e);
                 evaluation = {
                     battingScore: Math.round(hScore / 10),
                     bowlingScore: Math.round(hScore / 10),
@@ -154,8 +221,8 @@ const evaluateAllTeams = async (teamsData) => {
                     starPlayer: "N/A",
                     hiddenGem: "N/A",
                     playing11: squadToEvaluate.slice(0, 11).map(p => p.name || "Unknown"),
-                    tacticalVerdict: "Heuristic evaluation complete. Squad meets minimum requirements for a competitive season.",
-                    weakness: "Manual analysis recommended for deeper tactical insight.",
+                    tacticalVerdict: "Heuristic evaluation complete. Squad meets minimum requirements but AI generation failed.",
+                    weakness: "Manual analysis recommended.",
                     historicalContext: "Standard squad composition."
                 };
             }

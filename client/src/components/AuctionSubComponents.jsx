@@ -1,6 +1,7 @@
 import React, { memo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ImAirplane } from "react-icons/im";
+import { getFlagUrl } from "../utils/playerUtils";
 
 export const TeamList = memo(
   ({
@@ -114,16 +115,26 @@ export const TeamList = memo(
                         key={idx}
                         className="flex justify-between items-center text-[10px] font-bold bg-black/20 p-2 rounded border border-white/5"
                       >
-                        <span className="text-white uppercase truncate pr-2 flex items-center gap-1.5">
-                          {displayName}
-                          {p.isOverseas && (
-                            <ImAirplane
-                              className="text-blue-400 -rotate-45"
-                              size={10}
-                              title="Overseas Player"
+                        <div className="flex items-center gap-1.5 overflow-hidden">
+                          {getFlagUrl(p.player?.nationality || p.nationality) && (
+                            <img
+                              src={getFlagUrl(p.player?.nationality || p.nationality)}
+                              onError={(e) => {
+                                e.target.style.display = 'none';
+                              }}
+                              alt=""
+                              className="w-4 h-auto rounded-sm shrink-0 border border-white/10"
                             />
                           )}
-                        </span>
+                          <span className="truncate">{displayName}</span>
+                        </div>
+                        {p.isOverseas && (
+                          <ImAirplane
+                            className="text-blue-400 -rotate-45"
+                            size={10}
+                            title="Overseas Player"
+                          />
+                        )}
                         <span className="text-blue-400 shrink-0">
                           ₹{p.boughtFor}L
                         </span>

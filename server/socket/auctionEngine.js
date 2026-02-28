@@ -4,29 +4,94 @@ const AuctionRoom = require('../models/AuctionRoom');
 const Franchise = require('../models/Franchise');
 const AuctionTransaction = require('../models/AuctionTransaction');
 const mongoose = require('mongoose');
+const jwt = require('jsonwebtoken');
+
+const JWT_SECRET = process.env.JWT_SECRET || 'ipl_auction_fallback_secret';
 
 async function fetchAllPlayers() {
-    // Fetch from the correctly seeded Player collection (new_enhanced)
-    // Sorting by createdAt to maintain the sequencial order of pools
-    return await Player.find().sort({ createdAt: 1 }).lean();
+    const collections = [
+        'marquee',
+        'pool1_batsmen',
+        'pool1_bowlers',
+        'pool2_batsmen',
+        'pool2_bowlers',
+        'pool3',
+        'pool4'
+    ];
+
+    try {
+        console.time("[DATA] Multi-fetch duration");
+
+        // Fetch all collections in parallel for speed
+        const poolResults = await Promise.all(
+            collections.map(async (collName) => {
+                const players = await mongoose.connection.db.collection(collName).find({}).toArray();
+
+                // Shuffle players within this specific collection (Fisher-Yates)
+                for (let i = players.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [players[i], players[j]] = [players[j], players[i]];
+                }
+
+                // Determine basePrice (in lakhs)
+                let bp = 50;
+                if (['marquee', 'pool1_batsmen', 'pool1_bowlers'].includes(collName)) bp = 200;
+                else if (['pool2_batsmen', 'pool2_bowlers'].includes(collName)) bp = 150;
+                else if (collName === 'pool3') bp = 100;
+                else if (collName === 'pool4') bp = 50;
+
+                // Format and map snake_case MongoDB stats to camelCase UI fields
+                return players.map(p => ({
+                    ...p,
+                    name: p.name || p.player || "Unknown Player",
+                    poolName: collName.replace(/_/g, ' ').toUpperCase(),
+                    poolID: collName,
+                    basePrice: bp,
+                    image: p.image_path || p.image || "/default-player.png",
+                    // Nest stats for UI compatibility
+                    stats: {
+                        battingAvg: p.batting_avg || p.battingAvg || 0,
+                        strikeRate: p.batting_strike_rate || p.strikeRate || 0,
+                        highestScore: p.highest_score || p.highestScore || 0,
+                        bowlingAvg: p.bowling_avg || p.bowlingAvg || 0,
+                        economy: p.bowling_economy || p.economy || 0,
+                        bestFigures: p.best_bowling_figures || p.bestFigures || "0/0",
+                        matches: p.matches || 0,
+                        runs: p.runs || 0,
+                        wickets: p.wickets || 0,
+                        catches: p.catches || 0,
+                        stumpings: p.stumpings || 0
+                    }
+                }));
+            })
+        );
+
+        console.timeEnd("[DATA] Multi-fetch duration");
+
+        // Flatten into final auction order
+        return poolResults.flat();
+    } catch (err) {
+        console.error("[DATA] Multi-collection fetch error:", err.message);
+        return [];
+    }
 }
 
 const IPL_TEAMS = [
-    { id: 'MI', name: 'Mumbai Indians', color: '#004BA0', logoUrl: 'https://toppng.com/show_download/469611/mumbai-indians-vector-logo' },
-    { id: 'CSK', name: 'Chennai Super Kings', color: '#FFFF3C', logoUrl: 'https://toppng.com/show_download/192192/chennai-super-kings-logo-png-csk-team-2018-players-list-free-download' },
-    { id: 'RCB', name: 'Royal Challengers Bengaluru', color: '#EC1C24', logoUrl: 'https://upload.wikimedia.org/wikipedia/en/thumb/d/d4/Royal_Challengers_Bengaluru_Logo.svg/330px-Royal_Challengers_Bengaluru_Logo.svg.png' },
+    { id: 'MI', name: 'Mumbai Indians', color: '#004BA0', logoUrl: 'https://upload.wikimedia.org/wikipedia/en/thumb/c/cd/Mumbai_Indians_Logo.svg/1200px-Mumbai_Indians_Logo.svg.png' },
+    { id: 'CSK', name: 'Chennai Super Kings', color: '#FFFF3C', logoUrl: 'https://upload.wikimedia.org/wikipedia/en/thumb/2/2b/Chennai_Super_Kings_Logo.svg/1200px-Chennai_Super_Kings_Logo.svg.png' },
+    { id: 'RCB', name: 'Royal Challengers Bengaluru', color: '#EC1C24', logoUrl: 'https://upload.wikimedia.org/wikipedia/en/thumb/d/d4/Royal_Challengers_Bengaluru_Logo.svg/1200px-Royal_Challengers_Bengaluru_Logo.svg.png' },
     { id: 'KKR', name: 'Kolkata Knight Riders', color: '#2E0854', logoUrl: 'https://upload.wikimedia.org/wikipedia/en/thumb/4/4c/Kolkata_Knight_Riders_Logo.svg/1200px-Kolkata_Knight_Riders_Logo.svg.png' },
-    { id: 'DC', name: 'Delhi Capitals', color: '#00008B', logoUrl: 'https://upload.wikimedia.org/wikipedia/en/thumb/2/2f/Delhi_Capitals.svg/500px-Delhi_Capitals.svg.png' },
+    { id: 'DC', name: 'Delhi Capitals', color: '#00008B', logoUrl: 'https://upload.wikimedia.org/wikipedia/en/thumb/2/2f/Delhi_Capitals.svg/1200px-Delhi_Capitals.svg.png' },
     { id: 'PBKS', name: 'Punjab Kings', color: '#ED1B24', logoUrl: 'https://upload.wikimedia.org/wikipedia/en/thumb/d/d4/Punjab_Kings_Logo.svg/1200px-Punjab_Kings_Logo.svg.png' },
     { id: 'RR', name: 'Rajasthan Royals', color: '#EA1A85', logoUrl: 'https://scores.iplt20.com/ipl/teamlogos/RR.png' },
-    { id: 'SRH', name: 'Sunrisers Hyderabad', color: '#FF822A', logoUrl: 'https://upload.wikimedia.org/wikipedia/en/thumb/5/51/Sunrisers_Hyderabad_Logo.svg/500px-Sunrisers_Hyderabad_Logo.svg.png' },
+    { id: 'SRH', name: 'Sunrisers Hyderabad', color: '#FF822A', logoUrl: 'https://upload.wikimedia.org/wikipedia/en/thumb/1/1c/Sunrisers_Hyderabad_Logo.svg/1200px-Sunrisers_Hyderabad_Logo.svg.png' },
     { id: 'LSG', name: 'Lucknow Super Giants', color: '#00D1FF', logoUrl: 'https://upload.wikimedia.org/wikipedia/en/thumb/a/a9/Lucknow_Super_Giants_IPL_Logo.svg/1200px-Lucknow_Super_Giants_IPL_Logo.svg.png' },
     { id: 'GT', name: 'Gujarat Titans', color: '#1B2133', logoUrl: 'https://upload.wikimedia.org/wikipedia/en/thumb/0/09/Gujarat_Titans_Logo.svg/1200px-Gujarat_Titans_Logo.svg.png' },
-    { id: 'DCG', name: 'Deccan Chargers', color: '#D1E1EF', logoUrl: 'https://upload.wikimedia.org/wikipedia/en/a/a6/HyderabadDeccanChargers.png' },
-    { id: 'KTK', name: 'Kochi Tuskers Kerala', color: '#F15A24', logoUrl: 'https://upload.wikimedia.org/wikipedia/en/thumb/9/96/Kochi_Tuskers_Kerala_Logo.svg/500px-Kochi_Tuskers_Kerala_Logo.svg.png' },
-    { id: 'PWI', name: 'Pune Warriors India', color: '#40E0D0', logoUrl: 'https://upload.wikimedia.org/wikipedia/en/4/4a/Pune_Warriors_India_IPL_Logo.png' },
-    { id: 'RPS', name: 'Rising Pune Supergiant', color: '#D11D70', logoUrl: 'https://upload.wikimedia.org/wikipedia/en/9/9a/Rising_Pune_Supergiant.png' },
-    { id: 'GL', name: 'Gujarat Lions', color: '#E04F16', logoUrl: 'https://upload.wikimedia.org/wikipedia/en/c/c4/Gujarat_Lions.png' },
+    { id: 'DCG', name: 'Deccan Chargers', color: '#D1E1EF', logoUrl: 'https://upload.wikimedia.org/wikipedia/en/thumb/a/a6/HyderabadDeccanChargers.png/500px-HyderabadDeccanChargers.png' },
+    { id: 'KTK', name: 'Kochi Tuskers Kerala', color: '#F15A24', logoUrl: 'https://upload.wikimedia.org/wikipedia/en/thumb/9/96/Kochi_Tuskers_Kerala_Logo.svg/1200px-Kochi_Tuskers_Kerala_Logo.svg.png' },
+    { id: 'PWI', name: 'Pune Warriors India', color: '#40E0D0', logoUrl: 'https://upload.wikimedia.org/wikipedia/en/thumb/4/4a/Pune_Warriors_India_IPL_Logo.png/500px-Pune_Warriors_India_IPL_Logo.png' },
+    { id: 'RPS', name: 'Rising Pune Supergiant', color: '#D11D70', logoUrl: 'https://upload.wikimedia.org/wikipedia/en/thumb/2/27/Rising_Pune_Supergiant.png/1200px-Rising_Pune_Supergiant.png' },
+    { id: 'GL', name: 'Gujarat Lions', color: '#E04F16', logoUrl: 'https://upload.wikimedia.org/wikipedia/en/thumb/c/c4/Gujarat_Lions.png/1200px-Gujarat_Lions.png' },
 ]; // 15 teams
 
 // In-memory state for timers to avoid DB writes for every second
@@ -38,6 +103,31 @@ function generateRoomCode() {
 }
 
 const setupSocketHandlers = (io) => {
+
+    // --- JWT Authentication Middleware ---
+    // Every socket connection must carry a valid JWT in socket.handshake.auth.token
+    io.use((socket, next) => {
+        const token = socket.handshake.auth?.token;
+        if (!token) {
+            // Allow connection without token for backward compat (guest mode)
+            // but they won't be able to own teams
+            socket.userId = null;
+            socket.playerName = 'Anonymous';
+            return next();
+        }
+        try {
+            const decoded = jwt.verify(token, JWT_SECRET);
+            socket.userId = decoded.userId;
+            socket.playerName = decoded.playerName;
+            return next();
+        } catch (err) {
+            console.warn(`[SESSION] Invalid JWT from socket ${socket.id}: ${err.message}`);
+            // Still allow connection but mark as unauthenticated
+            socket.userId = null;
+            socket.playerName = 'Anonymous';
+            return next();
+        }
+    });
 
     // Helper to broadcast active public rooms to all users currently in the Lobby menu
     const broadcastPublicRooms = () => {
@@ -53,7 +143,8 @@ const setupSocketHandlers = (io) => {
     };
 
     io.on('connection', (socket) => {
-        console.log(`User connected: ${socket.id}`);
+        console.log(`User connected: ${socket.id} (userId: ${socket.userId || 'guest'}, name: ${socket.playerName})`);
+
 
         // Initial fetch for a newly connected client who is sitting in the lobby
         socket.on('fetch_public_rooms', () => {
@@ -69,7 +160,10 @@ const setupSocketHandlers = (io) => {
         });
 
         // Create Room (Host)
-        socket.on('create_room', async ({ playerName, roomType = 'private' }) => {
+        socket.on('create_room', async ({ roomType = 'private' }) => {
+            // Read identity from the JWT-verified socket properties
+            const playerName = socket.playerName;
+            const userId = socket.userId;
             try {
                 const roomCode = generateRoomCode();
 
@@ -77,8 +171,23 @@ const setupSocketHandlers = (io) => {
                 const players = await fetchAllPlayers();
                 const playerIds = players.map(p => p._id);
 
-                // Fetch all 15 authentic IPL franchises
-                const dbFranchises = await Franchise.find();
+                // Fetch all 15 authentic IPL franchises from DB or fallback to hardcoded list
+                const dbFranchises = await Franchise.find().lean();
+                let normalizedFranchises = [];
+
+                if (dbFranchises && dbFranchises.length > 0) {
+                    normalizedFranchises = dbFranchises;
+                } else {
+                    console.log("[DATA] Franchise collection empty, using hardcoded fallback");
+                    normalizedFranchises = IPL_TEAMS.map(t => ({
+                        _id: new mongoose.Types.ObjectId(),
+                        name: t.name,
+                        shortName: t.id,
+                        primaryColor: t.color,
+                        logoUrl: t.logoUrl,
+                        purseLimit: 12000
+                    }));
+                }
 
                 const newRoom = new AuctionRoom({
                     roomId: roomCode,
@@ -87,6 +196,7 @@ const setupSocketHandlers = (io) => {
                     status: 'Lobby',
                     unsoldPlayers: playerIds,
                     franchisesInRoom: [],
+                    availableTeams: normalizedFranchises,
                     currentPlayerIndex: 0
                 });
                 await newRoom.save();
@@ -99,17 +209,19 @@ const setupSocketHandlers = (io) => {
                     roomType,
                     host: socket.id,
                     hostName: playerName,
+                    hostUserId: userId,          // Permanent secure host identifier
                     status: 'Lobby',
                     players: players,
                     currentIndex: 0,
-                    teams: [], // Re-added this explicitly
-                    spectators: [], // View-only users
-                    joinRequests: [], // Requests to become a team owner
-                    availableTeams: JSON.parse(JSON.stringify(dbFranchises)), // Deep copy so teams aren't globally removed
+                    teams: [],
+                    spectators: [],
+                    joinRequests: [],
+                    availableTeams: normalizedFranchises,
                     currentBid: { amount: 0, teamId: null, teamName: null },
-                    timer: 0, // Initialize to 0, start_auction/loadNextPlayer will set it
-                    timerDuration: 10, // Default 10 seconds
-                    isReAuctionRound: false
+                    timer: 0,
+                    timerDuration: 10,
+                    isReAuctionRound: false,
+                    unsoldHistory: []
                 };
 
                 socket.emit('room_created', { roomCode, state: roomStates[roomCode] });
@@ -125,12 +237,23 @@ const setupSocketHandlers = (io) => {
         });
 
         // Join Room
-        socket.on('join_room', async ({ roomCode, playerName, asSpectator = false }) => {
+        socket.on('join_room', async ({ roomCode, asSpectator = false }) => {
+            // playerName and userId come from the verified JWT on the socket
+            const userId = socket.userId;
+            const playerName = socket.playerName;
+
+            console.log(`[SESSION] join_room: roomCode=${roomCode}, userId=${userId}, playerName=${playerName}`);
             try {
                 const state = roomStates[roomCode];
-                if (!state) return socket.emit('error', 'Room not found or not active');
+                if (!state) {
+                    return socket.emit('error', 'Room not found or not active');
+                }
 
-                const existingTeam = state.teams.find(t => t.ownerName === playerName);
+                // Match by userId (secure), fallback to playerName for backward compat
+                const existingTeam = userId
+                    ? state.teams.find(t => t.ownerUserId === userId)
+                    : state.teams.find(t => t.ownerName === playerName);
+
                 if (state.status !== 'Lobby' && !existingTeam && !asSpectator) {
                     return socket.emit('error', 'Auction already started. New players cannot join.');
                 }
@@ -143,14 +266,13 @@ const setupSocketHandlers = (io) => {
 
                 socket.join(roomCode);
 
-                // Session Persistence: If a player with this name already claimed a team, re-link their socket
+                // Session Persistence: Re-link socket to their existing team via userId
                 if (existingTeam) {
-                    console.log(`Re-linking ${playerName} to team ${existingTeam.teamName} (New Socket: ${socket.id})`);
+                    console.log(`[SESSION] Re-linking ${playerName} (userId: ${userId}) to team ${existingTeam.teamName} (New Socket: ${socket.id})`);
                     existingTeam.ownerSocketId = socket.id;
 
-                    // If the host is also this person, update host ID too
-                    // (Note: In a real app we'd use a better session ID, but for local testing this is great)
-                    if (state.hostName === playerName) {
+                    // Update host socket ID if this person is the host
+                    if (state.hostUserId === userId || state.hostName === playerName) {
                         state.host = socket.id;
                     }
 
@@ -164,13 +286,37 @@ const setupSocketHandlers = (io) => {
                     if (!state.spectators) state.spectators = [];
                     const allTeamsTaken = !state.availableTeams || state.availableTeams.length === 0;
                     const shouldBeSpectator = asSpectator || allTeamsTaken;
-                    if (shouldBeSpectator && !state.spectators.some(s => s.socketId === socket.id)) {
-                        state.spectators.push({ socketId: socket.id, name: playerName });
+                    const alreadySpectating = state.spectators.some(s => s.socketId === socket.id || (userId && s.userId === userId));
+                    if (shouldBeSpectator && !alreadySpectating) {
+                        state.spectators.push({ socketId: socket.id, userId, name: playerName });
                     }
                 }
 
-                socket.emit('room_joined', { roomCode, state });
+                // Build a lightweight state summary for room_joined (strip the full players array to reduce payload)
+                const stateSummary = {
+                    ...state,
+                    players: [], // Don't send 100+ player objects — we'll push the current one separately below
+                    // Include critical current state directly in the join response for maximum reliability
+                    activePlayer: (state.status === 'Auctioning' || state.status === 'Paused') ? state.players[state.currentIndex] : null,
+                    activeBid: state.currentBid,
+                    unsoldHistory: state.unsoldHistory || []
+                };
+                socket.emit('room_joined', { roomCode, state: stateSummary });
                 io.to(roomCode).emit('spectator_update', { spectators: state.spectators || [] });
+
+                // If the auction is live and this is a returning team owner or spectator,
+                // push follow-up details (like next players) immediately.
+                if (state.status === 'Auctioning' || state.status === 'Paused') {
+                    const currentPlayer = state.players[state.currentIndex];
+                    const nextPlayers = state.players.slice(state.currentIndex + 1);
+                    if (currentPlayer) {
+                        console.log(`[SESSION] Pushing supplemental sync for "${currentPlayer.name || currentPlayer.player}" to socket ${socket.id}`);
+                        socket.emit('new_player', { player: currentPlayer, nextPlayers, timer: state.timer });
+                        if (state.currentBid && state.currentBid.amount > 0) {
+                            socket.emit('bid_placed', { currentBid: state.currentBid, timer: state.timer });
+                        }
+                    }
+                }
 
                 // Broadcast current online map (team owners + spectators)
                 const onlineMap = {};
@@ -184,16 +330,24 @@ const setupSocketHandlers = (io) => {
         });
 
         // Claim Team (Called by players from the Lobby UI)
-        socket.on('claim_team', async ({ roomCode, playerName, teamId }) => {
+        socket.on('claim_team', async ({ roomCode, teamId }) => {
+            const userId = socket.userId;
+            const playerName = socket.playerName;
+
             try {
+                if (!roomCode) return socket.emit('error', 'Room code is required');
+
                 const state = roomStates[roomCode];
                 if (!state) return socket.emit('error', 'Room not found or not active');
                 if (state.status !== 'Lobby' && !state.approvedSpectators?.includes(socket.id)) {
                     return socket.emit('error', 'You must be approved by the host to join an active auction.');
                 }
 
-                // Check if user already claimed a team
-                if (state.teams.some(t => t.ownerSocketId === socket.id)) {
+                // Check if user already claimed a team (by userId for secure check)
+                const alreadyOwns = userId
+                    ? state.teams.some(t => t.ownerUserId === userId)
+                    : state.teams.some(t => t.ownerSocketId === socket.id);
+                if (alreadyOwns) {
                     return socket.emit('error', 'You have already secured a franchise');
                 }
 
@@ -206,9 +360,10 @@ const setupSocketHandlers = (io) => {
                     franchiseId: assignedTeamDef._id,
                     teamName: assignedTeamDef.name,
                     teamThemeColor: assignedTeamDef.primaryColor,
-                    teamLogo: assignedTeamDef.logoUrl, // Pass Logo URL to UI
+                    teamLogo: assignedTeamDef.logoUrl,
                     ownerSocketId: socket.id,
-                    ownerName: playerName,
+                    ownerUserId: userId,     // Permanent secure identifier
+                    ownerName: playerName,   // Display name (can be duplicated, not used for auth)
                     currentPurse: assignedTeamDef.purseLimit,
                     overseasCount: 0,
                     rtmUsed: false,
@@ -287,8 +442,11 @@ const setupSocketHandlers = (io) => {
             const currentPlayer = state.players[state.currentIndex];
             let minIncrement = 25; // Default 25 Lakhs for most pools
 
-            if (currentPlayer.poolName === 'pool4') {
-                if (state.currentBid.amount < 200) {
+            // Use poolID for robust logic matching
+            if (currentPlayer.poolID === 'pool4') {
+                if (state.currentBid.amount < 100) {
+                    minIncrement = 5; // 5 Lakhs up to 1 Cr
+                } else if (state.currentBid.amount < 200) {
                     minIncrement = 10; // 10 Lakhs up to 2 Cr
                 } else {
                     minIncrement = 25; // 25 Lakhs after 2 Cr
@@ -336,6 +494,21 @@ const setupSocketHandlers = (io) => {
                 message,
                 timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
             });
+        });
+
+        // --- STATE SYNC ---
+        socket.on('request_auction_sync', ({ roomCode }) => {
+            const state = roomStates[roomCode];
+            // Allow sync even if paused, just not in lobby, selection, or finished
+            if (!state || ['Lobby', 'Selection', 'Finished'].includes(state.status)) return;
+
+            const player = state.players[state.currentIndex];
+            const nextPlayers = state.players.slice(state.currentIndex + 1);
+
+            if (player) {
+                socket.emit('new_player', { player, nextPlayers, timer: state.timer });
+                socket.emit('bid_placed', { currentBid: state.currentBid, timer: state.timer });
+            }
         });
 
         // --- SPECTATOR & HOST APPROVAL ---
@@ -621,7 +794,7 @@ function loadNextPlayer(roomCode, io) {
     }
 
     const player = state.players[state.currentIndex];
-    const nextPlayers = state.players.slice(state.currentIndex + 1, state.currentIndex + 11);
+    const nextPlayers = state.players.slice(state.currentIndex + 1);
 
     state.currentBid = { amount: 0, teamId: null, teamName: null, teamColor: null, teamLogo: null, ownerName: null };
     state.timerEndsAt = Date.now() + (state.timerDuration * 1000);
@@ -677,7 +850,11 @@ async function processHammerDown(roomCode, io) {
                 player: player._id,
                 name: playerName,
                 isOverseas: player.isOverseas,
-                boughtFor: state.currentBid.amount
+                boughtFor: state.currentBid.amount,
+                basePrice: player.basePrice,
+                photoUrl: player.photoUrl,
+                imagepath: player.imagepath,
+                image_path: player.image_path
             });
             winningSocketId = state.teams[winningTeamIndex].ownerSocketId;
         }
@@ -741,7 +918,9 @@ async function processHammerDown(roomCode, io) {
 
     } else {
         // Player Unsold
-        io.to(roomCode).emit('player_unsold', { player });
+        if (!state.unsoldHistory) state.unsoldHistory = [];
+        state.unsoldHistory.push(player);
+        io.to(roomCode).emit('player_unsold', { player, unsoldHistory: state.unsoldHistory });
 
         try {
             await AuctionTransaction.create({
@@ -883,10 +1062,16 @@ async function finalizeResults(roomCode, io) {
                 };
             }));
 
-            // Fallback for playing15 if not set
-            const playing15 = (team.playing15 && team.playing15.length > 0)
-                ? team.playing15.map(id => String(id))
-                : team.playersAcquired.slice(0, 15).map(p => String(p.player));
+            // Fallback for playing15 (Random Selection for Timeout)
+            let playing15;
+            if (team.playing15 && team.playing15.length > 0) {
+                playing15 = team.playing15.map(id => String(id));
+            } else {
+                console.log(`[TIMEOUT] Randomly selecting 15 players for ${team.teamName}`);
+                // Shuffle and pick 15
+                const shuffled = [...team.playersAcquired].sort(() => 0.5 - Math.random());
+                playing15 = shuffled.slice(0, 15).map(p => String(p.player));
+            }
 
             return {
                 teamName: team.teamName,
@@ -906,7 +1091,8 @@ async function finalizeResults(roomCode, io) {
             return {
                 ...originalTeam,
                 evaluation: evalResult?.evaluation,
-                rank: evalResult?.rank
+                rank: evalResult?.rank,
+                playing15: evalResult?.playing15 || originalTeam.playing15 // Persist selected/random playing 15
             };
         });
 
