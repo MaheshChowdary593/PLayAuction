@@ -38,11 +38,38 @@ function generateRoomCode() {
 }
 
 const setupSocketHandlers = (io) => {
+
+    // Helper to broadcast active public rooms to all users currently in the Lobby menu
+    const broadcastPublicRooms = () => {
+        const publicRooms = Object.values(roomStates)
+            .filter(state => state.roomType === 'public' && state.status === 'Lobby')
+            .map(state => ({
+                roomCode: state.roomCode,
+                hostName: state.hostName,
+                teamsCount: state.teams.length,
+                maxTeams: state.availableTeams.length + state.teams.length // practically 15
+            }));
+        io.emit('public_rooms_update', publicRooms);
+    };
+
     io.on('connection', (socket) => {
         console.log(`User connected: ${socket.id}`);
 
+        // Initial fetch for a newly connected client who is sitting in the lobby
+        socket.on('fetch_public_rooms', () => {
+            const publicRooms = Object.values(roomStates)
+                .filter(state => state.roomType === 'public' && state.status === 'Lobby')
+                .map(state => ({
+                    roomCode: state.roomCode,
+                    hostName: state.hostName,
+                    teamsCount: state.teams.length,
+                    maxTeams: state.availableTeams.length + state.teams.length
+                }));
+            socket.emit('public_rooms_update', publicRooms);
+        });
+
         // Create Room (Host)
-        socket.on('create_room', async ({ playerName }) => {
+        socket.on('create_room', async ({ playerName, roomType = 'private' }) => {
             try {
                 const roomCode = generateRoomCode();
 
@@ -55,6 +82,7 @@ const setupSocketHandlers = (io) => {
 
                 const newRoom = new AuctionRoom({
                     roomId: roomCode,
+                    type: roomType,
                     hostSocketId: socket.id,
                     status: 'Lobby',
                     unsoldPlayers: playerIds,
@@ -68,12 +96,15 @@ const setupSocketHandlers = (io) => {
                 // Init high-performance memory state to prevent DB spam during fast bidding
                 roomStates[roomCode] = {
                     roomCode,
+                    roomType,
                     host: socket.id,
                     hostName: playerName,
                     status: 'Lobby',
                     players: players,
                     currentIndex: 0,
-                    teams: [], // Empty initially, host must claim team from lobby
+                    teams: [], // Re-added this explicitly
+                    spectators: [], // View-only users
+                    joinRequests: [], // Requests to become a team owner
                     availableTeams: JSON.parse(JSON.stringify(dbFranchises)), // Deep copy so teams aren't globally removed
                     currentBid: { amount: 0, teamId: null, teamName: null },
                     timer: 0, // Initialize to 0, start_auction/loadNextPlayer will set it
@@ -82,6 +113,11 @@ const setupSocketHandlers = (io) => {
                 };
 
                 socket.emit('room_created', { roomCode, state: roomStates[roomCode] });
+
+                // If this is a public room, broadcast it to the lobby menu globally
+                if (roomType === 'public') {
+                    broadcastPublicRooms();
+                }
             } catch (error) {
                 console.error(error);
                 socket.emit('error', 'Failed to create room');
@@ -89,14 +125,20 @@ const setupSocketHandlers = (io) => {
         });
 
         // Join Room
-        socket.on('join_room', async ({ roomCode, playerName }) => {
+        socket.on('join_room', async ({ roomCode, playerName, asSpectator = false }) => {
             try {
                 const state = roomStates[roomCode];
                 if (!state) return socket.emit('error', 'Room not found or not active');
 
                 const existingTeam = state.teams.find(t => t.ownerName === playerName);
-                if (state.status !== 'Lobby' && !existingTeam) {
+                if (state.status !== 'Lobby' && !existingTeam && !asSpectator) {
                     return socket.emit('error', 'Auction already started. New players cannot join.');
+                }
+
+                // Check if room is already completely full
+                const totalPlayers = state.teams.length + (state.spectators?.length || 0);
+                if (!existingTeam && totalPlayers >= 30) {
+                    return socket.emit('error', 'Room is currently full (Max 30 participants)');
                 }
 
                 socket.join(roomCode);
@@ -115,8 +157,26 @@ const setupSocketHandlers = (io) => {
                     io.to(roomCode).emit('lobby_update', { teams: state.teams });
                 }
 
-                // Do not assign team yet if they are new. Just let them in the lobby.
+                // Only add to spectators if:
+                // 1. They explicitly chose to spectate (asSpectator flag), OR
+                // 2. They are a new user and all teams are already claimed (overflow)
+                if (!existingTeam) {
+                    if (!state.spectators) state.spectators = [];
+                    const allTeamsTaken = !state.availableTeams || state.availableTeams.length === 0;
+                    const shouldBeSpectator = asSpectator || allTeamsTaken;
+                    if (shouldBeSpectator && !state.spectators.some(s => s.socketId === socket.id)) {
+                        state.spectators.push({ socketId: socket.id, name: playerName });
+                    }
+                }
+
                 socket.emit('room_joined', { roomCode, state });
+                io.to(roomCode).emit('spectator_update', { spectators: state.spectators || [] });
+
+                // Broadcast current online map (team owners + spectators)
+                const onlineMap = {};
+                state.teams?.forEach(t => { onlineMap[t.ownerSocketId] = true; });
+                state.spectators?.forEach(s => { onlineMap[s.socketId] = true; });
+                io.to(roomCode).emit('player_status_update', { onlineMap });
             } catch (error) {
                 console.error(error);
                 socket.emit('error', 'Failed to join room');
@@ -128,7 +188,9 @@ const setupSocketHandlers = (io) => {
             try {
                 const state = roomStates[roomCode];
                 if (!state) return socket.emit('error', 'Room not found or not active');
-                if (state.status !== 'Lobby') return socket.emit('error', 'Auction already started');
+                if (state.status !== 'Lobby' && !state.approvedSpectators?.includes(socket.id)) {
+                    return socket.emit('error', 'You must be approved by the host to join an active auction.');
+                }
 
                 // Check if user already claimed a team
                 if (state.teams.some(t => t.ownerSocketId === socket.id)) {
@@ -155,8 +217,18 @@ const setupSocketHandlers = (io) => {
 
                 state.teams.push(newTeamObj);
 
+                // Remove from spectators if they were one
+                if (state.spectators) {
+                    state.spectators = state.spectators.filter(s => s.socketId !== socket.id);
+                }
+                if (state.joinRequests) {
+                    state.joinRequests = state.joinRequests.filter(r => r.socketId !== socket.id);
+                    io.to(state.host).emit('join_requests_update', { requests: state.joinRequests });
+                }
+
                 // Broadcast updated list to everyone in lobby
                 io.to(roomCode).emit('lobby_update', { teams: state.teams });
+                io.to(roomCode).emit('spectator_update', { spectators: state.spectators || [] });
                 io.to(roomCode).emit('available_teams', { teams: state.availableTeams });
 
                 // Acknowledge directly to the claiming user so they can stop their loading spinner
@@ -164,6 +236,11 @@ const setupSocketHandlers = (io) => {
 
                 // Update authoritative DB state asynchronously
                 AuctionRoom.findOneAndUpdate({ roomId: roomCode }, { $push: { franchisesInRoom: newTeamObj } }).exec();
+
+                // If this is a public room, update the lobby count for onlookers
+                if (state.roomType === 'public') {
+                    broadcastPublicRooms();
+                }
 
             } catch (error) {
                 console.error(error);
@@ -186,6 +263,11 @@ const setupSocketHandlers = (io) => {
             io.to(roomCode).emit('auction_started', { state });
 
             AuctionRoom.findOneAndUpdate({ roomId: roomCode }, { status: 'Auctioning' }).exec();
+
+            // Room has started, remove it from the public lobbies list
+            if (state.roomType === 'public') {
+                broadcastPublicRooms();
+            }
 
             // Load first player after a slight delay
             setTimeout(() => loadNextPlayer(roomCode, io), 2000);
@@ -256,7 +338,107 @@ const setupSocketHandlers = (io) => {
             });
         });
 
-        // --- HOST MODERATION CONTROLS ---
+        // --- SPECTATOR & HOST APPROVAL ---
+        socket.on('request_participation', ({ roomCode }) => {
+            const state = roomStates[roomCode];
+            if (!state) return;
+
+            const spectator = state.spectators?.find(s => s.socketId === socket.id);
+            if (!spectator) return socket.emit('error', 'You are already a team owner.');
+
+            if (!state.joinRequests) state.joinRequests = [];
+
+            if (!state.joinRequests.some(r => r.socketId === socket.id)) {
+                state.joinRequests.push({ socketId: socket.id, name: spectator.name, time: Date.now() });
+                io.to(state.host).emit('join_requests_update', { roomCode, requests: state.joinRequests });
+            }
+        });
+
+        socket.on('approve_participation', ({ roomCode, targetSocketId }) => {
+            const state = roomStates[roomCode];
+            if (!state || state.host !== socket.id) return;
+
+            if (!state.joinRequests) state.joinRequests = [];
+            const requestIndex = state.joinRequests.findIndex(r => r.socketId === targetSocketId);
+
+            if (requestIndex !== -1) {
+                state.joinRequests.splice(requestIndex, 1);
+
+                if (!state.approvedSpectators) state.approvedSpectators = [];
+                state.approvedSpectators.push(targetSocketId);
+
+                io.to(targetSocketId).emit('participation_approved');
+                io.to(state.host).emit('join_requests_update', { roomCode, requests: state.joinRequests });
+            }
+        });
+
+        socket.on('reject_participation', ({ roomCode, targetSocketId }) => {
+            const state = roomStates[roomCode];
+            if (!state || state.host !== socket.id) return;
+
+            if (!state.joinRequests) state.joinRequests = [];
+            const requestIndex = state.joinRequests.findIndex(r => r.socketId === targetSocketId);
+
+            if (requestIndex !== -1) {
+                state.joinRequests.splice(requestIndex, 1);
+                io.to(targetSocketId).emit('participation_rejected');
+                io.to(state.host).emit('join_requests_update', { roomCode, requests: state.joinRequests });
+            }
+        });
+
+        // --- HOST MODERATION & PLAYER EXITS ---
+
+        // Player voluntarily leaving
+        socket.on('leave_room', async ({ roomCode, playerName }) => {
+            const state = roomStates[roomCode];
+            if (!state) return;
+
+            // If the Host leaves during the Lobby phase, disband the room
+            if (state.host === socket.id && state.status === 'Lobby') {
+                delete roomStates[roomCode];
+                io.to(roomCode).emit('room_disbanded');
+                io.in(roomCode).socketsLeave(roomCode);
+                AuctionRoom.findOneAndDelete({ roomId: roomCode }).exec();
+                broadcastPublicRooms();
+                return;
+            }
+
+            // Normal player leaving
+            const teamIndex = state.teams.findIndex(t => t.ownerSocketId === socket.id);
+            if (teamIndex !== -1) {
+                const removedTeam = state.teams.splice(teamIndex, 1)[0];
+
+                // Return team to available pool
+                state.availableTeams.push({
+                    _id: removedTeam.franchiseId,
+                    name: removedTeam.teamName,
+                    primaryColor: removedTeam.teamThemeColor,
+                    logoUrl: removedTeam.teamLogo,
+                    purseLimit: removedTeam.currentPurse,
+                    shortName: removedTeam.teamName.split(' ').map(w => w[0]).join('')
+                });
+
+                AuctionRoom.findOneAndUpdate({ roomId: roomCode }, { $pull: { franchisesInRoom: { ownerSocketId: socket.id } } }).exec();
+            }
+
+            // Remove from spectators if applicable
+            if (state.spectators) {
+                state.spectators = state.spectators.filter(s => s.socketId !== socket.id);
+                io.to(roomCode).emit('spectator_update', { spectators: state.spectators });
+            }
+            if (state.joinRequests) {
+                const initialLen = state.joinRequests.length;
+                state.joinRequests = state.joinRequests.filter(r => r.socketId !== socket.id);
+                if (state.joinRequests.length !== initialLen) {
+                    io.to(state.host).emit('join_requests_update', { roomCode, requests: state.joinRequests });
+                }
+            }
+
+            socket.leave(roomCode);
+            io.to(roomCode).emit('lobby_update', { teams: state.teams });
+            io.to(roomCode).emit('available_teams', { teams: state.availableTeams });
+            broadcastPublicRooms();
+        });
 
         // Kick Player
         socket.on('kick_player', async ({ roomCode, targetSocketId }) => {
@@ -283,6 +465,11 @@ const setupSocketHandlers = (io) => {
 
                 // Update Authoritative DB
                 AuctionRoom.findOneAndUpdate({ roomId: roomCode }, { $pull: { franchisesInRoom: { ownerSocketId: targetSocketId } } }).exec();
+
+                // If it's a public room, the player count just dropped, so inform the lobby
+                if (state.roomType === 'public') {
+                    broadcastPublicRooms();
+                }
             }
 
             // Tell target they were kicked
@@ -397,6 +584,28 @@ const setupSocketHandlers = (io) => {
 
         socket.on('disconnect', () => {
             console.log(`User disconnected: ${socket.id}`);
+
+            // For every active room, if this socket was a team owner, broadcast an offline update
+            for (const roomCode of Object.keys(roomStates)) {
+                const state = roomStates[roomCode];
+                if (!state) continue;
+
+                const affectedTeam = state.teams?.find(t => t.ownerSocketId === socket.id);
+                const affectedSpectator = state.spectators?.find(s => s.socketId === socket.id);
+
+                if (affectedTeam || affectedSpectator) {
+                    // Build map of socketId -> online boolean (team owners + spectators)
+                    const onlineMap = {};
+                    state.teams?.forEach(t => {
+                        onlineMap[t.ownerSocketId] = (t.ownerSocketId !== socket.id);
+                    });
+                    state.spectators?.forEach(s => {
+                        onlineMap[s.socketId] = (s.socketId !== socket.id);
+                    });
+                    io.to(roomCode).emit('player_status_update', { onlineMap });
+                    break;
+                }
+            }
         });
 
     });

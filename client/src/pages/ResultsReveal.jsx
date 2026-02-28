@@ -73,7 +73,7 @@ const ResultsReveal = () => {
     );
 
     return (
-        <div className="min-h-screen bg-darkBg text-white p-8 relative overflow-hidden font-sans">
+        <div className="min-h-screen bg-darkBg text-white p-4 sm:p-8 relative overflow-hidden font-sans">
 
             {/* Background elements */}
             <div className="fixed inset-0 pointer-events-none">
@@ -82,16 +82,16 @@ const ResultsReveal = () => {
             </div>
 
             <div className="relative z-10 max-w-7xl mx-auto">
-                <header className="flex justify-between items-end mb-16">
+                <header className="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-8 md:mb-16 gap-6">
                     <div>
-                        <h1 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] mb-2">Auction Concluded / Final Review</h1>
-                        <h2 className="text-5xl lg:text-6xl xl:text-7xl font-black italic tracking-tighter uppercase leading-none">
+                        <h1 className="text-[8px] md:text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] mb-2">Auction Concluded / Final Review</h1>
+                        <h2 className="text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-black italic tracking-tighter uppercase leading-none">
                             The <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400">Verdict</span>
                         </h2>
                     </div>
                     <button
                         onClick={() => navigate('/')}
-                        className="px-6 py-3 glass-panel rounded-xl border-white/10 hover:bg-white/10 transition-colors text-[10px] font-black uppercase tracking-widest"
+                        className="w-full sm:w-auto px-6 py-3 glass-panel rounded-xl border-white/10 hover:bg-white/10 transition-colors text-[10px] font-black uppercase tracking-widest"
                     >
                         Back to Lobby
                     </button>
@@ -139,33 +139,33 @@ const ResultsReveal = () => {
                                     initial={{ opacity: 0, y: 20 }}
                                     animate={{ opacity: 1, y: 0 }}
                                     exit={{ opacity: 0, scale: 0.95 }}
-                                    className="glass-card rounded-[40px] p-10 border-white/10 relative overflow-hidden h-full flex flex-col"
+                                    className="glass-card rounded-[32px] md:rounded-[40px] p-6 md:p-10 border-white/10 relative overflow-hidden h-full flex flex-col"
                                 >
                                     {/* Team Header */}
-                                    <div className="flex justify-between items-start mb-12">
-                                        <div>
+                                    <div className="flex flex-col md:flex-row justify-between items-start mb-8 md:mb-12 gap-8">
+                                        <div className="flex-1 min-w-0">
                                             <div className="flex items-center gap-4 mb-4">
-                                                <div className="w-4 h-8 lg:h-12 rounded-full" style={{ backgroundColor: selectedTeam.teamThemeColor }}></div>
-                                                <h2 className="text-3xl lg:text-4xl xl:text-5xl font-black uppercase tracking-tighter italic">{selectedTeam.teamName}</h2>
+                                                <div className="w-3 h-6 md:w-4 md:h-12 rounded-full shrink-0" style={{ backgroundColor: selectedTeam.teamThemeColor }}></div>
+                                                <h2 className="text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-black uppercase tracking-tighter italic truncate">{selectedTeam.teamName}</h2>
                                             </div>
-                                            <p className="text-slate-300 font-bold max-w-lg leading-relaxed text-sm">
+                                            <p className="text-slate-300 font-bold max-w-lg leading-relaxed text-xs md:text-sm">
                                                 {selectedTeam.evaluation?.tacticalVerdict || selectedTeam.evaluation?.summary}
                                             </p>
-                                            <p className="text-blue-400/60 font-black text-[10px] uppercase tracking-widest mt-4">
+                                            <p className="text-blue-400/60 font-black text-[8px] md:text-[10px] uppercase tracking-widest mt-4">
                                                 {selectedTeam.evaluation?.historicalContext}
                                             </p>
 
                                             {selectedTeam.tieBreakerReason && (
                                                 <div className="mt-4 p-3 bg-blue-500/10 border border-blue-500/30 rounded-xl">
                                                     <div className="text-[8px] font-black text-blue-400 uppercase tracking-widest mb-1">Tie-Breaker Logic</div>
-                                                    <p className="text-[11px] font-bold text-blue-200 italic">"{selectedTeam.tieBreakerReason}"</p>
+                                                    <p className="text-[10px] md:text-[11px] font-bold text-blue-200 italic">"{selectedTeam.tieBreakerReason}"</p>
                                                 </div>
                                             )}
                                         </div>
-                                        <div className="flex flex-col items-center gap-4">
-                                            <div className="glass-panel p-6 rounded-[30px] border-white/5 text-center px-10">
-                                                <div className="text-5xl font-black tracking-tighter" style={{ color: selectedTeam.teamThemeColor }}>{selectedTeam.evaluation?.overallScore}</div>
-                                                <div className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mt-2">Overall Rating</div>
+                                        <div className="flex flex-row md:flex-col items-center gap-4 w-full md:w-auto">
+                                            <div className="flex-1 md:flex-none glass-panel p-4 md:p-6 rounded-[20px] md:rounded-[30px] border-white/5 text-center px-6 md:px-10">
+                                                <div className="text-3xl md:text-5xl font-black tracking-tighter" style={{ color: selectedTeam.teamThemeColor }}>{selectedTeam.evaluation?.overallScore}</div>
+                                                <div className="text-[8px] md:text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mt-2">Score</div>
                                             </div>
                                             <button
                                                 onClick={() => {
@@ -185,22 +185,22 @@ const ResultsReveal = () => {
                                     </div>
 
                                     {/* Breakdown */}
-                                    <div className="grid grid-cols-4 gap-4 mb-8">
-                                        <div className="glass-panel rounded-3xl p-4 border-white/5 text-center">
-                                            <div className="text-[9px] text-slate-400 font-black uppercase tracking-widest mb-1">Batting</div>
-                                            <div className="text-2xl font-black">{selectedTeam.evaluation?.battingScore}</div>
+                                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 md:gap-4 mb-8">
+                                        <div className="glass-panel rounded-2xl md:rounded-3xl p-3 md:p-4 border-white/5 text-center">
+                                            <div className="text-[8px] md:text-[9px] text-slate-400 font-black uppercase tracking-widest mb-1">Batting</div>
+                                            <div className="text-xl md:text-2xl font-black">{selectedTeam.evaluation?.battingScore}</div>
                                         </div>
-                                        <div className="glass-panel rounded-3xl p-4 border-white/5 text-center">
-                                            <div className="text-[9px] text-slate-400 font-black uppercase tracking-widest mb-1">Bowling</div>
-                                            <div className="text-2xl font-black">{selectedTeam.evaluation?.bowlingScore}</div>
+                                        <div className="glass-panel rounded-2xl md:rounded-3xl p-3 md:p-4 border-white/5 text-center">
+                                            <div className="text-[8px] md:text-[9px] text-slate-400 font-black uppercase tracking-widest mb-1">Bowling</div>
+                                            <div className="text-xl md:text-2xl font-black">{selectedTeam.evaluation?.bowlingScore}</div>
                                         </div>
-                                        <div className="glass-panel rounded-3xl p-4 border-white/5 text-center">
-                                            <div className="text-[9px] text-slate-400 font-black uppercase tracking-widest mb-1">Balance</div>
-                                            <div className="text-2xl font-black">{selectedTeam.evaluation?.balanceScore}</div>
+                                        <div className="glass-panel rounded-2xl md:rounded-3xl p-3 md:p-4 border-white/5 text-center">
+                                            <div className="text-[8px] md:text-[9px] text-slate-400 font-black uppercase tracking-widest mb-1">Balance</div>
+                                            <div className="text-xl md:text-2xl font-black">{selectedTeam.evaluation?.balanceScore}</div>
                                         </div>
-                                        <div className="glass-panel rounded-3xl p-4 border-white/5 text-center">
-                                            <div className="text-[9px] text-slate-400 font-black uppercase tracking-widest mb-1">Impact</div>
-                                            <div className="text-2xl font-black">{selectedTeam.evaluation?.impactScore || selectedTeam.evaluation?.formScore}</div>
+                                        <div className="glass-panel rounded-2xl md:rounded-3xl p-3 md:p-4 border-white/5 text-center">
+                                            <div className="text-[8px] md:text-[9px] text-slate-400 font-black uppercase tracking-widest mb-1">Impact</div>
+                                            <div className="text-xl md:text-2xl font-black">{selectedTeam.evaluation?.impactScore || selectedTeam.evaluation?.formScore}</div>
                                         </div>
                                     </div>
 
