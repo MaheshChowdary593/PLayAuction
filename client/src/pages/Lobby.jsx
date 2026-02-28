@@ -178,6 +178,7 @@ const Lobby = () => {
     });
 
     socket.on("auction_started", ({ state }) => {
+      console.log("Auction started event received for room:", state.roomCode);
       navigate(`/auction/${state.roomCode}`, {
         state: { roomState: state, isSpectator: isSpectatorMode },
       });
@@ -271,6 +272,8 @@ const Lobby = () => {
   };
 
   const handleStart = () => {
+    console.log("Emitting start_auction for room:", roomState?.roomCode);
+    if (!roomState?.roomCode) return setError("Room code missing, please rejoin.");
     socket.emit("start_auction", { roomCode: roomState.roomCode });
   };
 
@@ -902,12 +905,19 @@ const Lobby = () => {
                     )}
 
                     {isHost ? (
-                      <button
-                        onClick={handleStart}
-                        className="w-full btn-premium bg-white shadow-[0_0_50px_rgba(255,255,255,0.2)] mt-6"
-                      >
-                        Initiate Auction Loop
-                      </button>
+                      <div className="space-y-4 pt-6">
+                        {error && (
+                          <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-500 text-[10px] font-black uppercase tracking-widest text-center animate-bounce">
+                            {error}
+                          </div>
+                        )}
+                        <button
+                          onClick={handleStart}
+                          className="w-full btn-premium bg-white shadow-[0_0_50px_rgba(255,255,255,0.2)]"
+                        >
+                          Initiate Auction Loop
+                        </button>
+                      </div>
                     ) : (
                       <div className="w-full p-6 rounded-2xl bg-white/5 border border-white/10 text-center mt-4">
                         <div className="text-white/30 text-[10px] font-black uppercase tracking-[0.2em] animate-pulse">

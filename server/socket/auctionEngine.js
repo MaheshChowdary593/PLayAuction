@@ -176,6 +176,12 @@ const setupSocketHandlers = (io) => {
 
                 // Fetch players from all pools and maintain pool order
                 const players = await fetchAllPlayers();
+
+                if (!players || players.length === 0) {
+                    console.error("[ROOM_CREATE] Failed: No players found in ipl_data collection");
+                    return socket.emit('error', 'Database Error: No players found in "ipl_data". Please seed the database first.');
+                }
+
                 const playerIds = players.map(p => p._id);
 
                 // Fetch all 15 authentic IPL franchises from DB or fallback to hardcoded list
@@ -768,6 +774,23 @@ const setupSocketHandlers = (io) => {
             }
         });
 
+        // Manual Sync for Podium
+        socket.on('request_auction_sync', ({ roomCode }) => {
+            const state = roomStates[roomCode];
+            if (!state || state.status !== 'Auctioning') return;
+
+            const player = state.activePlayer || state.players[state.currentIndex];
+            if (player) {
+                const nextPlayers = state.players.slice(state.currentIndex + 1);
+                socket.emit('new_player', {
+                    player,
+                    nextPlayers,
+                    timer: state.timer,
+                    activeBid: state.currentBid
+                });
+            }
+        });
+
         socket.on('disconnect', () => {
             console.log(`User disconnected: ${socket.id}`);
 
@@ -807,6 +830,7 @@ function loadNextPlayer(roomCode, io) {
     }
 
     const player = state.players[state.currentIndex];
+    state.activePlayer = player; // Store explicitly for easy hydration on join/sync
     const nextPlayers = state.players.slice(state.currentIndex + 1);
 
     state.currentBid = { amount: 0, teamId: null, teamName: null, teamColor: null, teamLogo: null, ownerName: null };
