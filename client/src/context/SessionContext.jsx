@@ -8,7 +8,7 @@ const SessionContext = createContext(null);
  */
 export const useSession = () => useContext(SessionContext);
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5050';
+const API_URL = import.meta.env.VITE_API_URL || '';
 const SESSION_KEY = 'ipl_session_token';
 
 /**

@@ -8,7 +8,7 @@ import { useSession } from '../context/SessionContext';
 const SquadSelection = () => {
     const { roomCode } = useParams();
     const navigate = useNavigate();
-    const socket = useSocket();
+    const { socket } = useSocket();
 
     const [squad, setSquad] = useState([]);
     const [selectedIds, setSelectedIds] = useState([]);
@@ -35,7 +35,7 @@ const SquadSelection = () => {
         // Fetch initial state via API for fast hydrate
         const fetchState = async () => {
             try {
-                const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5050';
+                const apiUrl = import.meta.env.VITE_API_URL || '';
                 const res = await fetch(`${apiUrl}/api/room/${roomCode}`);
                 if (!res.ok) throw new Error("Room not found");
                 const data = await res.json();

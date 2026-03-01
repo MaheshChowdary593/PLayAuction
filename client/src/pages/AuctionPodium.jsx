@@ -30,7 +30,7 @@ const AuctionPodium = () => {
     const { roomCode } = useParams();
     const location = useLocation();
     const navigate = useNavigate();
-    const socket = useSocket();
+    const { socket } = useSocket();
     const [isSocketReady, setIsSocketReady] = useState(false);
 
     const [gameState, setGameState] = useState(location.state?.roomState || null);
@@ -56,7 +56,7 @@ const AuctionPodium = () => {
 
     useEffect(() => {
         // Fetch players to create a fallback name map in case backend only sends IDs
-        const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:5050";
+        const apiUrl = import.meta.env.VITE_API_URL || "";
         fetch(`${apiUrl}/api/players`)
             .then((res) => res.json())
             .then((data) => {
@@ -469,7 +469,7 @@ const AuctionPodium = () => {
                         setExpandedTeamId={setExpandedTeamId}
                         allPlayersMap={allPlayersMap}
                         onlineMap={onlineMap}
-                        isHost={gameState?.host === socket.id}
+                        isHost={(userId && gameState?.hostUserId && gameState.hostUserId === userId) || gameState?.host === socket.id}
                         mySocketId={socket.id}
                         onKick={(socketId, name) => setKickTarget({ socketId, name })}
                     />
@@ -1298,12 +1298,13 @@ const AuctionPodium = () => {
                                                             {req.name?.charAt(0)}
                                                         </span>
                                                     </div>
+                                                    {/* Online status dot (using stable userId) */}
                                                     <span
-                                                        className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-slate-900 ${onlineMap[req.socketId] === false
+                                                        className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-slate-900 ${onlineMap[req.userId] === false
                                                             ? "bg-red-500 shadow-[0_0_6px_#ef4444]"
                                                             : "bg-green-500 shadow-[0_0_6px_#22c55e]"
                                                             }`}
-                                                        title={onlineMap[req.socketId] === false ? "Offline" : "Online"}
+                                                        title={onlineMap[req.userId] === false ? "Offline" : "Online"}
                                                     />
                                                 </div>
                                                 <div>

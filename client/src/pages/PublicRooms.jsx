@@ -10,7 +10,7 @@ const PublicRooms = () => {
   );
   const [error, setError] = useState("");
 
-  const socket = useSocket();
+  const { socket } = useSocket();
   const navigate = useNavigate();
 
   useEffect(() => {

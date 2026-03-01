@@ -62,7 +62,7 @@ const Lobby = () => {
   const [isDirectJoining, setIsDirectJoining] = useState(false);
   const [isAutoJoining, setIsAutoJoining] = useState(false);
 
-  const socket = useSocket();
+  const { socket, reconnectWithToken } = useSocket();
   const navigate = useNavigate();
   const location = useLocation();
   const { roomCode: urlRoomCode } = useParams();
@@ -178,7 +178,6 @@ const Lobby = () => {
     });
 
     socket.on("auction_started", ({ state }) => {
-      console.log("Auction started event received for room:", state.roomCode);
       navigate(`/auction/${state.roomCode}`, {
         state: { roomState: state, isSpectator: isSpectatorMode },
       });
@@ -209,25 +208,16 @@ const Lobby = () => {
     };
   }, [socket, navigate]);
 
-  /**
-   * Ensures the socket carries the latest JWT before emitting.
-   * On a brand-new session (no token when socket was created), triggers a reconnect.
-   */
-  const reconnectSocketIfNeeded = (newToken) => {
-    if (socket && (!socket.auth?.token) && newToken) {
-      socket.auth = { token: newToken };
-      socket.disconnect().connect();
-    }
-  };
+  // Reconnection logic is now handled directly by reconnectWithToken
 
   const handleCreate = async () => {
     if (!localNameInput.trim()) return setError("Enter your name first");
     try {
       setIsAutoJoining(true);
       const data = await initSession(localNameInput.trim());
-      reconnectSocketIfNeeded(data.token);
-      // Small delay to let the reconnect finish the handshake
-      setTimeout(() => socket.emit("create_room", { roomType: creatingRoomType }), 300);
+      // Await the new connected socket to avoid the race condition
+      const freshSocket = await reconnectWithToken(data.token);
+      freshSocket.emit("create_room", { roomType: creatingRoomType });
     } catch (e) {
       setError(e.message || 'Failed to start session');
       setIsAutoJoining(false);
@@ -240,8 +230,8 @@ const Lobby = () => {
     try {
       setIsAutoJoining(true);
       const data = await initSession(localNameInput.trim());
-      reconnectSocketIfNeeded(data.token);
-      setTimeout(() => socket.emit("join_room", { roomCode: codeToJoin }), 300);
+      const freshSocket = await reconnectWithToken(data.token);
+      freshSocket.emit("join_room", { roomCode: codeToJoin });
     } catch (e) {
       setError(e.message || 'Failed to start session');
       setIsAutoJoining(false);
@@ -254,8 +244,8 @@ const Lobby = () => {
     try {
       setIsAutoJoining(true);
       const data = await initSession(localNameInput.trim());
-      reconnectSocketIfNeeded(data.token);
-      setTimeout(() => socket.emit("join_room", { roomCode: codeToJoin, asSpectator: true }), 300);
+      const freshSocket = await reconnectWithToken(data.token);
+      freshSocket.emit("join_room", { roomCode: codeToJoin, asSpectator: true });
     } catch (e) {
       setError(e.message || 'Failed to start session');
       setIsAutoJoining(false);
@@ -272,8 +262,6 @@ const Lobby = () => {
   };
 
   const handleStart = () => {
-    console.log("Emitting start_auction for room:", roomState?.roomCode);
-    if (!roomState?.roomCode) return setError("Room code missing, please rejoin.");
     socket.emit("start_auction", { roomCode: roomState.roomCode });
   };
 
@@ -731,14 +719,14 @@ const Lobby = () => {
                             <div className="text-[10px] text-slate-500 font-bold truncate flex items-center gap-1.5">
                               {/* Online status dot */}
                               <span
-                                className={`w-1.5 h-1.5 rounded-full shrink-0 ${onlineMap[t.ownerSocketId] === false
+                                className={`w-1.5 h-1.5 rounded-full shrink-0 ${onlineMap[t.ownerUserId] === false
                                   ? "bg-red-500"
                                   : "bg-green-500"
                                   }`}
-                                title={onlineMap[t.ownerSocketId] === false ? "Offline" : "Online"}
+                                title={onlineMap[t.ownerUserId] === false ? "Offline" : "Online"}
                               />
                               {t.ownerName}{" "}
-                              {t.ownerSocketId === roomState.host && "(Host)"}
+                              {(t.ownerUserId && roomState.hostUserId && t.ownerUserId === roomState.hostUserId) || t.ownerSocketId === roomState.host ? "(Host)" : ""}
                             </div>
                           </div>
 
@@ -905,19 +893,12 @@ const Lobby = () => {
                     )}
 
                     {isHost ? (
-                      <div className="space-y-4 pt-6">
-                        {error && (
-                          <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-500 text-[10px] font-black uppercase tracking-widest text-center animate-bounce">
-                            {error}
-                          </div>
-                        )}
-                        <button
-                          onClick={handleStart}
-                          className="w-full btn-premium bg-white shadow-[0_0_50px_rgba(255,255,255,0.2)]"
-                        >
-                          Initiate Auction Loop
-                        </button>
-                      </div>
+                      <button
+                        onClick={handleStart}
+                        className="w-full btn-premium bg-white shadow-[0_0_50px_rgba(255,255,255,0.2)] mt-6"
+                      >
+                        Initiate Auction Loop
+                      </button>
                     ) : (
                       <div className="w-full p-6 rounded-2xl bg-white/5 border border-white/10 text-center mt-4">
                         <div className="text-white/30 text-[10px] font-black uppercase tracking-[0.2em] animate-pulse">

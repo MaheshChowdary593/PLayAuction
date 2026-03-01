@@ -9,76 +9,69 @@ const jwt = require('jsonwebtoken');
 const JWT_SECRET = process.env.JWT_SECRET || 'ipl_auction_fallback_secret';
 
 async function fetchAllPlayers() {
+    const collections = [
+        'marquee',
+        'pool1_batsmen',
+        'pool1_bowlers',
+        'pool2_batsmen',
+        'pool2_bowlers',
+        'pool3',
+        'pool4'
+    ];
+
     try {
-        console.time("[DATA] Model-fetch duration");
+        console.time("[DATA] Multi-fetch duration");
 
-        // Fetch all players from the 'ipl_data' collection using the Player model
-        const allPlayers = await Player.find().lean();
+        // Fetch all collections in parallel for speed
+        const poolResults = await Promise.all(
+            collections.map(async (collName) => {
+                const players = await mongoose.connection.db.collection(collName).find({}).toArray();
 
-        if (!allPlayers || allPlayers.length === 0) {
-            console.error("[DATA] CRITICAL: No players found in 'ipl_data' collection!");
-            return [];
-        }
+                // Shuffle players within this specific collection (Fisher-Yates)
+                for (let i = players.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [players[i], players[j]] = [players[j], players[i]];
+                }
 
-        const roleOrder = ['marquee', 'Batsman', 'Bowler', 'All-Rounder', 'Wicketkeeper'];
-        const sortedPlayers = [];
+                // Determine basePrice (in lakhs)
+                let bp = 50;
+                if (['marquee', 'pool1_batsmen', 'pool1_bowlers'].includes(collName)) bp = 200;
+                else if (['pool2_batsmen', 'pool2_bowlers'].includes(collName)) bp = 150;
+                else if (collName === 'pool3') bp = 100;
+                else if (collName === 'pool4') bp = 50;
 
-        // 1. Identify Marquees (highest priority)
-        const marquee = allPlayers.filter(p =>
-            (p.poolName && p.poolName.toLowerCase().includes('marquee')) ||
-            (p.poolID && p.poolID.toLowerCase().includes('marquee')) ||
-            (p.poolName && p.poolName.toLowerCase().includes('marqueeset'))
+                // Format and map snake_case MongoDB stats to camelCase UI fields
+                return players.map(p => ({
+                    ...p,
+                    name: p.name || p.player || "Unknown Player",
+                    poolName: collName.replace(/_/g, ' ').toUpperCase(),
+                    poolID: collName,
+                    basePrice: bp,
+                    image: p.image_path || p.image || "/default-player.png",
+                    // Nest stats for UI compatibility
+                    stats: {
+                        battingAvg: p.batting_avg || p.battingAvg || 0,
+                        strikeRate: p.batting_strike_rate || p.strikeRate || 0,
+                        highestScore: p.highest_score || p.highestScore || 0,
+                        bowlingAvg: p.bowling_avg || p.bowlingAvg || 0,
+                        economy: p.bowling_economy || p.economy || 0,
+                        bestFigures: p.best_bowling_figures || p.bestFigures || "0/0",
+                        matches: p.matches || 0,
+                        runs: p.runs || 0,
+                        wickets: p.wickets || 0,
+                        catches: p.catches || 0,
+                        stumpings: p.stumpings || 0
+                    }
+                }));
+            })
         );
-        // Shuffle marquee
-        for (let i = marquee.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            [marquee[i], marquee[j]] = [marquee[j], marquee[i]];
-        }
-        sortedPlayers.push(...marquee);
 
-        // 2. Groups by Role
-        ['Batsman', 'Bowler', 'All-Rounder', 'Wicketkeeper'].forEach(role => {
-            const roleGroup = allPlayers.filter(p =>
-                !marquee.includes(p) &&
-                (p.role === role || (role === 'Batsman' && p.role === 'Batsmen') || (role === 'All-Rounder' && p.role === 'Allrounder'))
-            );
-            // Shuffle group
-            for (let i = roleGroup.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [roleGroup[i], roleGroup[j]] = [roleGroup[j], roleGroup[i]];
-            }
-            sortedPlayers.push(...roleGroup);
-        });
+        console.timeEnd("[DATA] Multi-fetch duration");
 
-        // 3. Any stragglers
-        const remaining = allPlayers.filter(p => !sortedPlayers.includes(p));
-        sortedPlayers.push(...remaining);
-
-        console.timeEnd("[DATA] Model-fetch duration");
-        console.log(`[DATA] Successfully loaded ${sortedPlayers.length} players for room`);
-
-        // Format for UI compatibility (ensure stats are nested correctly)
-        return sortedPlayers.map(p => ({
-            ...p,
-            name: p.player || p.name || "Unknown Player",
-            basePrice: p.basePrice || 50,
-            image: p.image_path || p.imagepath || p.photoUrl || "/default-player.png",
-            photoUrl: p.image_path || p.imagepath || p.photoUrl || "/default-player.png",
-            stats: {
-                battingAvg: p.stats?.battingAvg || p.batting_avg || 0,
-                strikeRate: p.stats?.strikeRate || p.batting_strike_rate || 0,
-                highestScore: p.stats?.highestScore || 0,
-                bowlingAvg: p.stats?.bowlingAvg || p.bowling_avg || 0,
-                economy: p.stats?.economy || p.bowling_economy || 0,
-                matches: p.stats?.matches || 0,
-                runs: p.stats?.runs || 0,
-                wickets: p.stats?.wickets || 0,
-                catches: p.stats?.catches || 0,
-                stumpings: p.stats?.stumpings || 0
-            }
-        }));
-    } catch (error) {
-        console.error("[DATA] Error in fetchAllPlayers:", error);
+        // Flatten into final auction order
+        return poolResults.flat();
+    } catch (err) {
+        console.error("[DATA] Multi-collection fetch error:", err.message);
         return [];
     }
 }
@@ -176,12 +169,6 @@ const setupSocketHandlers = (io) => {
 
                 // Fetch players from all pools and maintain pool order
                 const players = await fetchAllPlayers();
-
-                if (!players || players.length === 0) {
-                    console.error("[ROOM_CREATE] Failed: No players found in ipl_data collection");
-                    return socket.emit('error', 'Database Error: No players found in "ipl_data". Please seed the database first.');
-                }
-
                 const playerIds = players.map(p => p._id);
 
                 // Fetch all 15 authentic IPL franchises from DB or fallback to hardcoded list
@@ -267,7 +254,8 @@ const setupSocketHandlers = (io) => {
                     ? state.teams.find(t => t.ownerUserId === userId)
                     : state.teams.find(t => t.ownerName === playerName);
 
-                if (state.status !== 'Lobby' && !existingTeam && !asSpectator) {
+                const isApproved = (userId && state.approvedUserIds?.includes(userId)) || state.approvedSpectators?.includes(socket.id);
+                if (state.status !== 'Lobby' && !existingTeam && !asSpectator && !isApproved) {
                     return socket.emit('error', 'Auction already started. New players cannot join.');
                 }
 
@@ -299,9 +287,15 @@ const setupSocketHandlers = (io) => {
                     if (!state.spectators) state.spectators = [];
                     const allTeamsTaken = !state.availableTeams || state.availableTeams.length === 0;
                     const shouldBeSpectator = asSpectator || allTeamsTaken;
-                    const alreadySpectating = state.spectators.some(s => s.socketId === socket.id || (userId && s.userId === userId));
-                    if (shouldBeSpectator && !alreadySpectating) {
-                        state.spectators.push({ socketId: socket.id, userId, name: playerName });
+
+                    if (shouldBeSpectator) {
+                        const existingSpectator = state.spectators.find(s => (userId && s.userId === userId) || s.socketId === socket.id);
+                        if (existingSpectator) {
+                            // Update existing record with the new socket ID
+                            existingSpectator.socketId = socket.id;
+                        } else {
+                            state.spectators.push({ socketId: socket.id, userId, name: playerName });
+                        }
                     }
                 }
 
@@ -331,10 +325,14 @@ const setupSocketHandlers = (io) => {
                     }
                 }
 
-                // Broadcast current online map (team owners + spectators)
+                // Broadcast current online map (team owners + spectators) using stable userId
                 const onlineMap = {};
-                state.teams?.forEach(t => { onlineMap[t.ownerSocketId] = true; });
-                state.spectators?.forEach(s => { onlineMap[s.socketId] = true; });
+                state.teams?.forEach(t => {
+                    if (t.ownerUserId) onlineMap[t.ownerUserId] = true;
+                });
+                state.spectators?.forEach(s => {
+                    if (s.userId) onlineMap[s.userId] = true;
+                });
                 io.to(roomCode).emit('player_status_update', { onlineMap });
             } catch (error) {
                 console.error(error);
@@ -352,7 +350,8 @@ const setupSocketHandlers = (io) => {
 
                 const state = roomStates[roomCode];
                 if (!state) return socket.emit('error', 'Room not found or not active');
-                if (state.status !== 'Lobby' && !state.approvedSpectators?.includes(socket.id)) {
+                const isApproved = (userId && state.approvedUserIds?.includes(userId)) || state.approvedSpectators?.includes(socket.id);
+                if (state.status !== 'Lobby' && !isApproved) {
                     return socket.emit('error', 'You must be approved by the host to join an active auction.');
                 }
 
@@ -427,12 +426,6 @@ const setupSocketHandlers = (io) => {
                 return socket.emit('error', 'At least one team must claim a franchise before auction can begin');
             }
 
-            // --- CRITICAL SECURITY CHECK: Are there actually players loaded? ---
-            if (!state.players || state.players.length === 0) {
-                console.error(`[ROOM ${roomCode}] Attempted to start auction with 0 players!`);
-                return socket.emit('error', 'Critical Error: No players loaded in this room. Please recreate the room or contact support.');
-            }
-
             state.status = 'Auctioning';
             io.to(roomCode).emit('auction_started', { state });
 
@@ -452,8 +445,8 @@ const setupSocketHandlers = (io) => {
             const state = roomStates[roomCode];
             if (!state || state.status !== 'Auctioning') return;
 
-            // Verify team exists and is not same as current highest bidder
-            const team = state.teams.find(t => t.ownerSocketId === socket.id);
+            // Verify team exists using stable userId
+            const team = state.teams.find(t => t.ownerUserId === socket.userId);
             if (!team) return socket.emit('error', 'You are not assigned to a franchise');
             if (state.currentBid.teamId === team.franchiseId) return socket.emit('error', 'You already hold the highest bid');
 
@@ -535,45 +528,67 @@ const setupSocketHandlers = (io) => {
             const state = roomStates[roomCode];
             if (!state) return;
 
-            const spectator = state.spectators?.find(s => s.socketId === socket.id);
-            if (!spectator) return socket.emit('error', 'You are already a team owner.');
+            const userId = socket.userId;
+            const playerName = socket.playerName;
+
+            // Check if user already owns a team
+            const alreadyOwns = state.teams.some(t => t.ownerUserId === userId);
+            if (alreadyOwns) return socket.emit('error', 'You are already a team owner.');
 
             if (!state.joinRequests) state.joinRequests = [];
 
-            if (!state.joinRequests.some(r => r.socketId === socket.id)) {
-                state.joinRequests.push({ socketId: socket.id, name: spectator.name, time: Date.now() });
+            // Prevent duplicate requests by userId
+            if (!state.joinRequests.some(r => r.userId === userId)) {
+                state.joinRequests.push({
+                    socketId: socket.id,
+                    userId,
+                    name: playerName,
+                    time: Date.now()
+                });
                 io.to(state.host).emit('join_requests_update', { roomCode, requests: state.joinRequests });
             }
         });
 
-        socket.on('approve_participation', ({ roomCode, targetSocketId }) => {
+        socket.on('approve_participation', ({ roomCode, targetUserId, targetSocketId }) => {
             const state = roomStates[roomCode];
-            if (!state || state.host !== socket.id) return;
+            if (!state || (state.hostUserId !== socket.userId && state.host !== socket.id)) return;
 
             if (!state.joinRequests) state.joinRequests = [];
-            const requestIndex = state.joinRequests.findIndex(r => r.socketId === targetSocketId);
+
+            // Find by userId (preferred) or targetSocketId
+            const requestIndex = state.joinRequests.findIndex(r =>
+                (targetUserId && r.userId === targetUserId) || r.socketId === targetSocketId
+            );
 
             if (requestIndex !== -1) {
-                state.joinRequests.splice(requestIndex, 1);
+                const request = state.joinRequests.splice(requestIndex, 1)[0];
+                const actualSocketId = request.socketId;
 
                 if (!state.approvedSpectators) state.approvedSpectators = [];
-                state.approvedSpectators.push(targetSocketId);
+                // Store both for fallback
+                state.approvedSpectators.push(actualSocketId);
+                if (request.userId) {
+                    if (!state.approvedUserIds) state.approvedUserIds = [];
+                    state.approvedUserIds.push(request.userId);
+                }
 
-                io.to(targetSocketId).emit('participation_approved');
+                io.to(actualSocketId).emit('participation_approved');
                 io.to(state.host).emit('join_requests_update', { roomCode, requests: state.joinRequests });
             }
         });
 
-        socket.on('reject_participation', ({ roomCode, targetSocketId }) => {
+        socket.on('reject_participation', ({ roomCode, targetUserId, targetSocketId }) => {
             const state = roomStates[roomCode];
-            if (!state || state.host !== socket.id) return;
+            if (!state || (state.hostUserId !== socket.userId && state.host !== socket.id)) return;
 
             if (!state.joinRequests) state.joinRequests = [];
-            const requestIndex = state.joinRequests.findIndex(r => r.socketId === targetSocketId);
+            const requestIndex = state.joinRequests.findIndex(r =>
+                (targetUserId && r.userId === targetUserId) || r.socketId === targetSocketId
+            );
 
             if (requestIndex !== -1) {
-                state.joinRequests.splice(requestIndex, 1);
-                io.to(targetSocketId).emit('participation_rejected');
+                const request = state.joinRequests.splice(requestIndex, 1)[0];
+                io.to(request.socketId).emit('participation_rejected');
                 io.to(state.host).emit('join_requests_update', { roomCode, requests: state.joinRequests });
             }
         });
@@ -585,8 +600,11 @@ const setupSocketHandlers = (io) => {
             const state = roomStates[roomCode];
             if (!state) return;
 
+            const userId = socket.userId;
+
             // If the Host leaves during the Lobby phase, disband the room
-            if (state.host === socket.id && state.status === 'Lobby') {
+            const isHost = (userId && state.hostUserId === userId) || state.host === socket.id;
+            if (isHost && state.status === 'Lobby') {
                 delete roomStates[roomCode];
                 io.to(roomCode).emit('room_disbanded');
                 io.in(roomCode).socketsLeave(roomCode);
@@ -595,8 +613,10 @@ const setupSocketHandlers = (io) => {
                 return;
             }
 
-            // Normal player leaving
-            const teamIndex = state.teams.findIndex(t => t.ownerSocketId === socket.id);
+            // Normal player leaving - find by userId first
+            const teamIndex = state.teams.findIndex(t =>
+                (userId && t.ownerUserId === userId) || t.ownerSocketId === socket.id
+            );
             if (teamIndex !== -1) {
                 const removedTeam = state.teams.splice(teamIndex, 1)[0];
 
@@ -633,14 +653,25 @@ const setupSocketHandlers = (io) => {
         });
 
         // Kick Player
-        socket.on('kick_player', async ({ roomCode, targetSocketId }) => {
+        socket.on('kick_player', async ({ roomCode, targetSocketId, targetUserId }) => {
             const state = roomStates[roomCode];
-            if (!state || state.host !== socket.id) return; // Only host can kick
+            if (!state || (socket.userId && state.hostUserId !== socket.userId) || (!socket.userId && state.host !== socket.id)) {
+                return socket.emit('error', 'Unauthorized: Only the host can kick players.');
+            }
 
-            if (targetSocketId === state.host) return socket.emit('error', 'You cannot kick yourself');
+            // Prevent host from kicking themselves
+            if ((targetUserId && socket.userId === targetUserId) || (!targetUserId && socket.id === targetSocketId)) {
+                return socket.emit('error', 'You cannot kick yourself');
+            }
 
             // Find if the target has claimed a team
-            const teamIndex = state.teams.findIndex(t => t.ownerSocketId === targetSocketId);
+            let teamIndex = -1;
+            if (targetUserId) {
+                teamIndex = state.teams.findIndex(t => t.ownerUserId === targetUserId);
+            } else {
+                teamIndex = state.teams.findIndex(t => t.ownerSocketId === targetSocketId);
+            }
+
 
             if (teamIndex !== -1) {
                 const removedTeam = state.teams.splice(teamIndex, 1)[0];
@@ -656,7 +687,12 @@ const setupSocketHandlers = (io) => {
                 });
 
                 // Update Authoritative DB
-                AuctionRoom.findOneAndUpdate({ roomId: roomCode }, { $pull: { franchisesInRoom: { ownerSocketId: targetSocketId } } }).exec();
+                if (targetUserId) {
+                    AuctionRoom.findOneAndUpdate({ roomId: roomCode }, { $pull: { franchisesInRoom: { ownerUserId: targetUserId } } }).exec();
+                } else {
+                    AuctionRoom.findOneAndUpdate({ roomId: roomCode }, { $pull: { franchisesInRoom: { ownerSocketId: targetSocketId } } }).exec();
+                }
+
 
                 // If it's a public room, the player count just dropped, so inform the lobby
                 if (state.roomType === 'public') {
@@ -679,7 +715,7 @@ const setupSocketHandlers = (io) => {
         // Pause / Resume
         socket.on('pause_auction', ({ roomCode }) => {
             const state = roomStates[roomCode];
-            if (!state || state.host !== socket.id) return;
+            if (!state || (socket.userId && state.hostUserId !== socket.userId) || (!socket.userId && state.host !== socket.id)) return socket.emit('error', 'Unauthorized: Only the host can pause the auction.');
             state.status = 'Paused';
             // Stop the interval timer temporarily
             if (roomTimers[roomCode]) clearInterval(roomTimers[roomCode]);
@@ -688,7 +724,7 @@ const setupSocketHandlers = (io) => {
 
         socket.on('resume_auction', ({ roomCode }) => {
             const state = roomStates[roomCode];
-            if (!state || state.host !== socket.id || state.status !== 'Paused') return;
+            if (!state || (socket.userId && state.hostUserId !== socket.userId) || (!socket.userId && state.host !== socket.id) || state.status !== 'Paused') return socket.emit('error', 'Unauthorized: Only the host can resume the auction.');
             state.status = 'Auctioning';
 
             // Re-sync timer Ends At based on how much time was remaining
@@ -710,14 +746,14 @@ const setupSocketHandlers = (io) => {
         // Force End Auction Early
         socket.on('force_end_auction', ({ roomCode }) => {
             const state = roomStates[roomCode];
-            if (!state || state.host !== socket.id) return;
+            if (!state || (state.hostUserId !== socket.userId && state.host !== socket.id)) return;
             endAuction(roomCode, io);
         });
 
         // Update Room Settings (Host Only)
         socket.on('update_settings', ({ roomCode, timerDuration }) => {
             const state = roomStates[roomCode];
-            if (!state || state.host !== socket.id) return;
+            if (!state || (state.hostUserId !== socket.userId && state.host !== socket.id)) return;
 
             if ([5, 10, 15, 20].includes(timerDuration)) {
                 state.timerDuration = timerDuration;
@@ -731,7 +767,10 @@ const setupSocketHandlers = (io) => {
             const state = roomStates[roomCode];
             if (!state || state.status !== 'Selection') return;
 
-            const teamIndex = state.teams.findIndex(t => t.ownerSocketId === socket.id);
+            const userId = socket.userId;
+            const teamIndex = state.teams.findIndex(t =>
+                (userId && t.ownerUserId === userId) || t.ownerSocketId === socket.id
+            );
             if (teamIndex === -1) return;
 
             state.teams[teamIndex].playing15 = playerIds;
@@ -748,7 +787,10 @@ const setupSocketHandlers = (io) => {
             const state = roomStates[roomCode];
             if (!state || state.status !== 'Selection') return;
 
-            const teamIndex = state.teams.findIndex(t => t.ownerSocketId === socket.id);
+            const userId = socket.userId;
+            const teamIndex = state.teams.findIndex(t =>
+                (userId && t.ownerUserId === userId) || t.ownerSocketId === socket.id
+            );
             if (teamIndex === -1) return;
 
             const team = state.teams[teamIndex];
@@ -774,45 +816,41 @@ const setupSocketHandlers = (io) => {
             }
         });
 
-        // Manual Sync for Podium
-        socket.on('request_auction_sync', ({ roomCode }) => {
-            const state = roomStates[roomCode];
-            if (!state || state.status !== 'Auctioning') return;
-
-            const player = state.activePlayer || state.players[state.currentIndex];
-            if (player) {
-                const nextPlayers = state.players.slice(state.currentIndex + 1);
-                socket.emit('new_player', {
-                    player,
-                    nextPlayers,
-                    timer: state.timer,
-                    activeBid: state.currentBid
-                });
-            }
-        });
-
         socket.on('disconnect', () => {
             console.log(`User disconnected: ${socket.id}`);
 
-            // For every active room, if this socket was a team owner, broadcast an offline update
+            // For every active room, if this userId was a participant, broadcast an offline update
+            const userId = socket.userId;
+            if (!userId) return;
+
             for (const roomCode of Object.keys(roomStates)) {
                 const state = roomStates[roomCode];
                 if (!state) continue;
 
-                const affectedTeam = state.teams?.find(t => t.ownerSocketId === socket.id);
-                const affectedSpectator = state.spectators?.find(s => s.socketId === socket.id);
+                const isParticipant = state.teams?.some(t => t.ownerUserId === userId) ||
+                    state.spectators?.some(s => s.userId === userId);
 
-                if (affectedTeam || affectedSpectator) {
-                    // Build map of socketId -> online boolean (team owners + spectators)
-                    const onlineMap = {};
-                    state.teams?.forEach(t => {
-                        onlineMap[t.ownerSocketId] = (t.ownerSocketId !== socket.id);
-                    });
-                    state.spectators?.forEach(s => {
-                        onlineMap[s.socketId] = (s.socketId !== socket.id);
-                    });
-                    io.to(roomCode).emit('player_status_update', { onlineMap });
-                    break;
+                if (isParticipant) {
+                    // Small delay before marking offline to account for quick reloads
+                    setTimeout(() => {
+                        const currentState = roomStates[roomCode];
+                        if (!currentState) return;
+
+                        // Check if the user has re-connected with a new socket in the meantime
+                        const isBack = currentState.teams?.some(t => t.ownerUserId === userId && t.ownerSocketId !== socket.id) ||
+                            currentState.spectators?.some(s => s.userId === userId && s.socketId !== socket.id);
+
+                        if (!isBack) {
+                            const onlineMap = {};
+                            currentState.teams?.forEach(t => {
+                                if (t.ownerUserId) onlineMap[t.ownerUserId] = (t.ownerUserId !== userId);
+                            });
+                            currentState.spectators?.forEach(s => {
+                                if (s.userId) onlineMap[s.userId] = (s.userId !== userId);
+                            });
+                            io.to(roomCode).emit('player_status_update', { onlineMap });
+                        }
+                    }, 2000);
                 }
             }
         });
@@ -830,7 +868,6 @@ function loadNextPlayer(roomCode, io) {
     }
 
     const player = state.players[state.currentIndex];
-    state.activePlayer = player; // Store explicitly for easy hydration on join/sync
     const nextPlayers = state.players.slice(state.currentIndex + 1);
 
     state.currentBid = { amount: 0, teamId: null, teamName: null, teamColor: null, teamLogo: null, ownerName: null };

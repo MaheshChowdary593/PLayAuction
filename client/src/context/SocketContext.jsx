@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { io } from 'socket.io-client';
 
 const SocketContext = createContext();
@@ -10,14 +10,15 @@ export const useSocket = () => {
 export const SocketProvider = ({ children }) => {
     const [socket, setSocket] = useState(null);
 
-    useEffect(() => {
-        // Read the token once at startup directly from localStorage.
-        // This avoids re-creating the socket every time the token state changes
-        // (which caused multiple rapid reconnects during page load).
-        const token = localStorage.getItem('ipl_session_token') || null;
-
-        const newSocket = io(import.meta.env.VITE_API_URL || 'http://localhost:5050', {
+    const connect = useCallback((token) => {
+        // Use relative URL for Vite proxy support; VITE_API_URL takes priority in production
+        const url = import.meta.env.VITE_API_URL || '/';
+        const newSocket = io(url, {
+            path: '/socket.io',
             auth: { token },
+            reconnection: true,
+            reconnectionAttempts: 10,
+            reconnectionDelay: 2000,
         });
 
         newSocket.on('connect', () => {
@@ -29,14 +30,43 @@ export const SocketProvider = ({ children }) => {
         });
 
         setSocket(newSocket);
+        return newSocket;
+    }, []);
+
+    useEffect(() => {
+        // Initial connection with whatever is in localStorage
+        const token = localStorage.getItem('ipl_session_token') || null;
+        const s = connect(token);
 
         return () => {
-            newSocket.close();
+            s.close();
         };
-    }, []); // Only run once on mount — token is read synchronously from localStorage
+    }, [connect]);
+
+    /**
+     * reconnectWithToken — forced reconnect with a new identity/token.
+     * Returns a Promise that resolves with the freshly-connected socket.
+     * Always await this before emitting events to avoid the race condition
+     * where you emit on the old socket before the new one has connected.
+     */
+    const reconnectWithToken = useCallback((newToken) => {
+        return new Promise((resolve) => {
+            setSocket(prev => {
+                if (prev) prev.close();
+                const newSocket = connect(newToken);
+                // Resolve immediately if already connected, otherwise wait
+                if (newSocket.connected) {
+                    resolve(newSocket);
+                } else {
+                    newSocket.once('connect', () => resolve(newSocket));
+                }
+                return newSocket;
+            });
+        });
+    }, [connect]);
 
     return (
-        <SocketContext.Provider value={socket}>
+        <SocketContext.Provider value={{ socket, reconnectWithToken }}>
             {children}
         </SocketContext.Provider>
     );

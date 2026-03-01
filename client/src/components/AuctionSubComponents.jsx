@@ -50,12 +50,12 @@ export const TeamList = memo(
                   </div>
                   {/* Online status dot */}
                   <span
-                    className={`absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-slate-900 ${onlineMap[t.ownerSocketId] === false
+                    className={`absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-slate-900 ${onlineMap[t.ownerUserId] === false
                       ? "bg-red-500 shadow-[0_0_6px_#ef4444]"
                       : "bg-green-500 shadow-[0_0_6px_#22c55e]"
                       }`}
                     title={
-                      onlineMap[t.ownerSocketId] === false ? "Offline" : "Online"
+                      onlineMap[t.ownerUserId] === false ? "Offline" : "Online"
                     }
                   />
                 </div>

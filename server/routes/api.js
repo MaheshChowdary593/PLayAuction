@@ -39,8 +39,8 @@ router.get('/room/:roomCode/results', async (req, res) => {
 
 router.get('/players', async (req, res) => {
     try {
-        const Player = require('../models/Player');
-        const players = await Player.find({});
+        const { fetchAllPlayers } = require('../services/playerService');
+        const players = await fetchAllPlayers();
         res.json(players);
     } catch (error) {
         res.status(500).json({ error: 'Server error' });

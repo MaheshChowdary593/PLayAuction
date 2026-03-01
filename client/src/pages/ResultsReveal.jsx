@@ -18,7 +18,7 @@ const ResultsReveal = () => {
 
     useEffect(() => {
         // Fetch players to create a fallback name map
-        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5050';
+        const apiUrl = import.meta.env.VITE_API_URL || '';
         fetch(`${apiUrl}/api/players`)
             .then(res => res.json())
             .then(data => {
