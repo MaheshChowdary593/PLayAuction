@@ -123,6 +123,18 @@ const setupSocketHandlers = (io) => {
             }
         });
 
+        // Explicit state sync for late joiners / refreshed tabs.
+        // Ensures that the same room code always resolves to the
+        // exact same live player and auction state on every client.
+        socket.on('request_room_state', ({ roomCode }) => {
+            const state = roomStates[roomCode];
+            if (!state) {
+                return socket.emit('error', 'Room not found or not active');
+            }
+
+            socket.emit('room_state_synced', { roomCode, state });
+        });
+
         // Claim Team (Called by players from the Lobby UI)
         socket.on('claim_team', async ({ roomCode, playerName, teamId }) => {
             try {

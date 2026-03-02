@@ -10,18 +10,21 @@ const GavelSlam = ({ type, teamName, teamColor, teamLogo, playerName, winningBid
 
         if (type === 'SOLD') {
             const timer = setTimeout(() => {
-                const end = Date.now() + 3000;
+                const end = Date.now() + 2000;
                 const colors = [teamColor || '#ffffff', '#ffffff', '#ffcc33'];
 
+                const myCanvas = document.getElementById('podium-confetti');
+                const runConfetti = myCanvas ? confetti.create(myCanvas, { resize: true }) : confetti;
+
                 (function frame() {
-                    confetti({
+                    runConfetti({
                         particleCount: 3,
                         angle: 60,
                         spread: 55,
                         origin: { x: 0 },
                         colors: colors
                     });
-                    confetti({
+                    runConfetti({
                         particleCount: 3,
                         angle: 120,
                         spread: 55,
@@ -67,7 +70,7 @@ const GavelSlam = ({ type, teamName, teamColor, teamLogo, playerName, winningBid
                 transition={{ type: "spring", stiffness: 200, damping: 12, delay: 0.1 }}
                 className="absolute z-[100] drop-shadow-[0_20px_30px_rgba(0,0,0,0.5)] flex items-center justify-center pointer-events-none"
             >
-                <svg width="280" height="280" viewBox="0 0 280 280" className="overflow-visible">
+                <svg viewBox="0 0 280 280" className="w-[150px] h-[150px] lg:w-[280px] lg:h-[280px] overflow-visible">
                     <defs>
                         <path id="curveTop" d={`M ${cx - 75},${cy} A 75,75 0 0,1 ${cx + 75},${cy}`} fill="transparent" />
                         <path id="curveBottom" d={`M ${cx - 85},${cy} A 85,85 0 0,0 ${cx + 85},${cy}`} fill="transparent" />
@@ -120,13 +123,13 @@ const GavelSlam = ({ type, teamName, teamColor, teamLogo, playerName, winningBid
             animate={{ scale: 0.5, opacity: 1, rotate: -15 }}
             exit={{ scale: 0, opacity: 0, y: -50 }}
             transition={{ type: "spring", stiffness: 200, damping: 10, delay: 0.1 }}
-            className="absolute z-[100] px-10 py-5 border-[8px] border-red-600 rounded-3xl drop-shadow-[0_15px_15px_rgba(220,38,38,0.4)] bg-black/60 backdrop-blur-sm pointer-events-none overflow-hidden"
+            className="absolute z-[100] px-4 py-2 lg:px-10 lg:py-5 border-[4px] lg:border-[8px] border-red-600 rounded-xl lg:rounded-3xl drop-shadow-[0_15px_15px_rgba(220,38,38,0.4)] bg-black/60 backdrop-blur-sm pointer-events-none overflow-hidden"
             style={{
                 boxShadow: 'inset 0 0 15px rgba(220,38,38,0.4), 0 0 15px rgba(220,38,38,0.2)'
             }}
         >
-            <div className="absolute inset-0 border-[3px] border-red-600/60 m-2 rounded-2xl" style={{ borderStyle: 'dotted' }}></div>
-            <h1 className="text-6xl font-black uppercase tracking-[0.3em] leading-none text-red-600 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] opacity-95"
+            <div className="absolute inset-0 border-[2px] lg:border-[3px] border-red-600/60 m-1 lg:m-2 rounded-lg lg:rounded-2xl" style={{ borderStyle: 'dotted' }}></div>
+            <h1 className="text-3xl lg:text-6xl font-black uppercase tracking-[0.3em] leading-none text-red-600 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] opacity-95"
                 style={{
                     fontFamily: '"Courier New", Courier, monospace',
                     transform: 'scaleY(1.3)',

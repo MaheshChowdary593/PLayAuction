@@ -8,11 +8,14 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --neon-blue: #00d2ff;
-  --neon-gold: #ffcc33;
-  --dark-depth: #050b18;
-  --card-glass: rgba(15, 23, 42, 0.7);
+@layer base {
+  html {
+    font-size: 14px;
+    -webkit-tap-highlight-color: transparent;
+  }
+  @media (min-width: 768px) {
+    html { font-size: 16px; }
+  }
 }
 
 body {
@@ -23,6 +26,7 @@ body {
   font-family: 'Outfit', sans-serif;
   -webkit-font-smoothing: antialiased;
   overflow-x: hidden;
+  height: 100%;
 }
 
 @layer components {
@@ -54,6 +58,22 @@ body {
     @apply border border-transparent;
     background: linear-gradient(var(--dark-depth), var(--dark-depth)) padding-box,
       linear-gradient(to right, var(--neon-blue), #9333ea) border-box;
+  }
+
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .pt-safe {
+    padding-top: env(safe-area-inset-top);
+  }
+
+  .scroll-hide::-webkit-scrollbar {
+    display: none;
+  }
+  .scroll-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
   }
 }
 
