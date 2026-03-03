@@ -16,18 +16,17 @@ const TeamRow = memo(({
   coHostUserIds,
   mySocketId,
   onKick,
-  onToggleCoHost
+  onToggleCoHost,
+  roster = [] // New prop: lazy-loaded players
 }) => {
   const isExpanded = expandedTeamId === t.franchiseId;
   const isActive = currentBidTeamId === t.franchiseId;
   const teamOwnerId = t.ownerUserId;
 
-  // Memoize counts inside the row is hard since it's a stateless component, but we can just calculate it.
-  // The goal is that this row only re-renders if t, currentBidTeamId, or expandedTeamId changes.
-
-  const counts = (t.playersAcquired || []).reduce((acc, p) => {
+  // Use lightweight role counts from server or calculate if roster available
+  const counts = t.roleCounts || (roster || []).reduce((acc, p) => {
     const playerRecord = allPlayersMap[p.player] || allPlayersMap[p._id] || {};
-    const role = (p.role || playerRecord.role || "").toLowerCase();
+    const role = (p.role || playerRecord.role || p.playerRole || "").toLowerCase();
 
     if (role.includes("wk") || role.includes("wicket") || role.includes("keeper")) acc.wk++;
     else if (role.includes("all") || role.includes("ar")) acc.ar++;
@@ -106,7 +105,7 @@ const TeamRow = memo(({
 
       <div className="mt-3 flex items-center justify-between border-t border-[#D4AF37]/10 pt-3 z-10">
         <div className="flex flex-wrap items-center gap-1.5">
-          {t.playersAcquired?.length > 0 ? (
+          {t.acquiredCount > 0 || t.playersAcquired?.length > 0 ? (
             <>
               {counts.bat > 0 && <span className="bg-[#D4AF37]/10 border border-[#D4AF37]/20 px-1.5 py-0.5 rounded text-[8px] font-black text-[#FFE58F]">Bat {counts.bat}</span>}
               {counts.bowl > 0 && <span className="bg-[#996515]/10 border border-[#996515]/20 px-1.5 py-0.5 rounded text-[8px] font-black text-[#D4AF37]">Bow {counts.bowl}</span>}
@@ -118,20 +117,22 @@ const TeamRow = memo(({
             <span className="text-[8px] font-black text-[#D4AF37]/20 tracking-widest uppercase italic">Building Squad...</span>
           )}
         </div>
-        <div className={`px-2 py-0.5 rounded-full text-[9px] font-black tracking-widest uppercase border ${t.playersAcquired?.length >= 25 ? 'bg-red-500/10 border-red-500/30 text-red-500 animate-pulse' : 'bg-white/5 border-[#D4AF37]/10 text-[#D4AF37]/40'}`}>
-          {t.playersAcquired?.length || 0}/25
+        <div className={`px-2 py-0.5 rounded-full text-[9px] font-black tracking-widest uppercase border ${(t.acquiredCount || t.playersAcquired?.length || 0) >= 25 ? 'bg-red-500/10 border-red-500/30 text-red-500 animate-pulse' : 'bg-white/5 border-[#D4AF37]/10 text-[#D4AF37]/40'}`}>
+          {t.acquiredCount || t.playersAcquired?.length || 0}/25
         </div>
       </div>
 
       <AnimatePresence>
-        {isExpanded && t.playersAcquired?.length > 0 && (
+        {isExpanded && (t.acquiredCount > 0 || (roster && roster.length > 0)) && (
           <motion.div
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
             className="mt-3 border-t border-[#D4AF37]/10 pt-3 flex flex-col gap-1.5 z-10 overflow-hidden"
           >
-            {t.playersAcquired.map((p, idx) => {
+            {(!roster || roster.length === 0) ? (
+              <div className="text-[10px] text-[#D4AF37]/50 italic text-center py-2 animate-pulse">Loading roster...</div>
+            ) : roster.map((p, idx) => {
               const playerRecord = allPlayersMap[p.player] || allPlayersMap[p._id] || {};
               let displayName = p.name || playerRecord.name || playerRecord.player || p.player || "Unknown";
               const role = (p.role || playerRecord.role || "").toLowerCase();
@@ -211,11 +212,13 @@ export const TeamList = memo(
     mySocketId = null,
     onKick = null,
     onToggleCoHost = null,
+    teamRosters = {},
   }) => (
     <div className="flex-1 overflow-y-auto px-4 pb-8 space-y-3 custom-scrollbar">
       {teams.map((t, i) => (
         <TeamRow
           key={t.franchiseId || i}
+          roster={teamRosters[t.id || t.franchiseId]}
           t={t}
           i={i}
           currentBidTeamId={currentBidTeamId}

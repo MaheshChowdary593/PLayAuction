@@ -14,7 +14,7 @@ const SquadSelection = () => {
     const [playing11, setPlaying11] = useState([]);
     const [impactPlayers, setImpactPlayers] = useState([]);
     const [selectionMode, setSelectionMode] = useState('playing11'); // 'playing11' or 'impact'
-    const [timer, setTimer] = useState(120);
+    const [timer, setTimer] = useState(240);
     const [isAutoSelecting, setIsAutoSelecting] = useState(false);
     const [isConfirmed, setIsConfirmed] = useState(false);
     const [roomState, setRoomState] = useState(null);

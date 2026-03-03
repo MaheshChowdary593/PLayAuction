@@ -19,29 +19,14 @@ app.use(express.json()); // Body parser
 
 const server = http.createServer(app);
 
-const setupSocketHandlers = require('./socket/auctionEngine');
+const initHardenedSocket = require('./socket/HardenedSocketServer');
 const { startPeriodicFlush } = require('./services/dbWriter');
 
 const apiRoutes = require('./routes/api');
 const sessionRoutes = require('./routes/session');
 
-// Setup Socket.io
-const io = new Server(server, {
-    cors: {
-        origin: '*',
-        methods: ['GET', 'POST']
-    },
-    // Force WebSocket — eliminates HTTP polling handshake overhead (~300ms saved per connection)
-    transports: ['websocket'],
-    // Compress large payloads (new_player with stats, lobby updates)
-    perMessageDeflate: {
-        threshold: 1024 // Only compress messages > 1KB
-    },
-    // 100KB max message size (players are large objects)
-    maxHttpBufferSize: 1e5
-});
-
-setupSocketHandlers(io);
+// Setup Hardened Socket.io
+const io = initHardenedSocket(server);
 
 app.use('/api', apiRoutes);
 app.use('/api/session', sessionRoutes);
@@ -64,13 +49,20 @@ if (process.env.NODE_ENV === 'production' && process.env.SERVER_URL) {
     }, 14 * 60 * 1000); // Every 14 minutes
 }
 
-// Start listening
+const PlayerCache = require('./utils/PlayerCache');
+
+// Memory Monitoring (Lightweight)
+setInterval(() => {
+    const mem = process.memoryUsage();
+    console.log(`[SYS] RAM: ${Math.round(mem.rss / 1024 / 1024)}MB | Rooms: ${require('./core/RoomManager').getAllRooms().length}`);
+}, 60000);
+
+// Start listening after Cache is primed
 const PORT = process.env.PORT || 5000;
-server.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
-    // Start batched DB write flush (writes dirty rooms every 30s instead of per-bid)
-    startPeriodicFlush(30000);
+PlayerCache.load().then(() => {
+    server.listen(PORT, () => {
+        console.log(`[SUCCESS] Server running on port ${PORT}`);
+    });
 });
 
-// Export io so it can be used in socket handlers
 module.exports = { io };

@@ -183,7 +183,30 @@ const IPL_TEAMS = [
 
 // In-memory state for timers to avoid DB writes for every second
 const roomTimers = {};
+const hostPromotionTimers = {}; // Separate map for host promotion timeouts (prevents circular ref in state)
 const roomStates = {}; // Keep active room state in memory for fast access, flush to DB periodically / at end
+
+// Helper to strip heavy data from teams for broad broadcasts
+function lightweightTeams(teams = []) {
+    return teams.map(t => {
+        const counts = (t.playersAcquired || []).reduce((acc, p) => {
+            const role = (p.role || "").toLowerCase();
+            if (role.includes("wk") || role.includes("wicket") || role.includes("keeper")) acc.wk++;
+            else if (role.includes("all") || role.includes("ar")) acc.ar++;
+            else if (role.includes("bowl") || role.includes("bw")) acc.bowl++;
+            else acc.bat++;
+            if (p.isOverseas || p.overseas) acc.fr++;
+            return acc;
+        }, { bat: 0, bowl: 0, ar: 0, wk: 0, fr: 0 });
+
+        return {
+            ...t,
+            playersAcquired: undefined, // Strip the heavy array
+            acquiredCount: t.playersAcquired?.length || 0,
+            roleCounts: counts
+        };
+    });
+}
 
 function isModerator(state, socketId, userId) {
     if (!state) return false;
@@ -455,7 +478,7 @@ const setupSocketHandlers = (io) => {
                         state.host = socket.id;
                     }
 
-                    io.to(roomCode).emit('lobby_update', { teams: state.teams });
+                    io.to(roomCode).emit('lobby_update', { teams: lightweightTeams(state.teams) });
                 }
 
                 // Only add to spectators if:
@@ -477,15 +500,17 @@ const setupSocketHandlers = (io) => {
                     }
                 }
 
-                // Build a lightweight state summary for room_joined (strip the full players array to reduce payload)
+                // Build a lightweight state summary for room_joined
+                const isActivePhase = state.status === 'Lobby' || state.status === 'Auctioning' || state.status === 'Paused';
                 const stateSummary = {
                     ...state,
-                    players: [], // Don't send 100+ player objects — we'll push the current one separately below
-                    // Include critical current state directly in the join response for maximum reliability
+                    players: [], // Don't send 100+ player objects
+                    teams: isActivePhase ? lightweightTeams(state.teams) : state.teams,
                     activePlayer: (state.status === 'Auctioning' || state.status === 'Paused') ? state.players[state.currentIndex] : null,
                     activeBid: state.currentBid,
                     unsoldHistory: state.unsoldHistory || []
                 };
+
                 socket.emit('room_joined', { roomCode, state: stateSummary });
                 io.to(roomCode).emit('spectator_update', { spectators: state.spectators || [] });
 
@@ -496,7 +521,11 @@ const setupSocketHandlers = (io) => {
                     const nextPlayers = state.players.slice(state.currentIndex + 1);
                     if (currentPlayer) {
                         console.log(`[SESSION] Pushing supplemental sync for "${currentPlayer.name || currentPlayer.player}" to socket ${socket.id}`);
-                        socket.emit('new_player', { player: currentPlayer, nextPlayers, timer: state.timer });
+                        socket.emit('new_player', {
+                            player: currentPlayer,
+                            nextPlayers: nextPlayers.slice(0, 10), // Limit payload size to next 10 players
+                            timer: state.timer
+                        });
                         if (state.currentBid && state.currentBid.amount > 0) {
                             socket.emit('bid_placed', { currentBid: state.currentBid, timer: state.timer });
                         }
@@ -512,6 +541,19 @@ const setupSocketHandlers = (io) => {
                     if (s.userId) onlineMap[s.userId] = true;
                 });
                 io.to(roomCode).emit('player_status_update', { onlineMap });
+
+                // Add lazy-load roster request handler
+                socket.on('request_team_roster', ({ teamId }) => {
+                    const roomState = roomStates[roomCode];
+                    if (!roomState) return;
+                    const team = roomState.teams.find(t => t.id === teamId || t.franchiseId === teamId);
+                    if (team) {
+                        socket.emit('team_roster_data', {
+                            teamId,
+                            playersAcquired: team.playersAcquired || []
+                        });
+                    }
+                });
             } catch (error) {
                 console.error(error);
                 socket.emit('error', 'Failed to join room');
@@ -572,7 +614,7 @@ const setupSocketHandlers = (io) => {
                 }
 
                 // Broadcast updated list to everyone in lobby
-                io.to(roomCode).emit('lobby_update', { teams: state.teams });
+                io.to(roomCode).emit('lobby_update', { teams: lightweightTeams(state.teams) });
                 io.to(roomCode).emit('spectator_update', { spectators: state.spectators || [] });
                 io.to(roomCode).emit('available_teams', { teams: state.availableTeams });
 
@@ -580,9 +622,9 @@ const setupSocketHandlers = (io) => {
                 socket.emit('team_claimed_success');
 
                 // Update authoritative DB state asynchronously (batched)
-                markDirty(roomCode, {});
-                AuctionRoom.findOneAndUpdate({ roomId: roomCode }, { $push: { franchisesInRoom: newTeamObj } }).exec();
-
+                // Broadcast joining event (using markDirty for periodic flush)
+                markDirty(roomCode, { franchisesInRoom: state.teams });
+                io.to(roomCode).emit('lobby_update', { teams: lightweightTeams(state.teams) });
                 // If this is a public room, update the lobby count for onlookers
                 if (state.roomType === 'public') {
                     broadcastPublicRooms();
@@ -852,7 +894,7 @@ const setupSocketHandlers = (io) => {
             }
 
             socket.leave(roomCode);
-            io.to(roomCode).emit('lobby_update', { teams: state.teams });
+            io.to(roomCode).emit('lobby_update', { teams: lightweightTeams(state.teams) });
             io.to(roomCode).emit('available_teams', { teams: state.availableTeams });
             broadcastPublicRooms();
         });
@@ -914,7 +956,7 @@ const setupSocketHandlers = (io) => {
             if (targetSocket) targetSocket.leave(roomCode);
 
             // Notify everyone else
-            io.to(roomCode).emit('lobby_update', { teams: state.teams });
+            io.to(roomCode).emit('lobby_update', { teams: lightweightTeams(state.teams) });
             io.to(roomCode).emit('available_teams', { teams: state.availableTeams });
         });
 
@@ -1231,8 +1273,8 @@ const setupSocketHandlers = (io) => {
                             if (currentState.hostUserId === userId && currentState.status !== 'Lobby' && currentState.status !== 'Finished') {
                                 console.log(`[HOST] Original host ${userId} offline (disconnect). Starting promotion timeout...`);
                                 // Clear existing timeout if any
-                                if (currentState.hostPromotionTimeout) clearTimeout(currentState.hostPromotionTimeout);
-                                currentState.hostPromotionTimeout = setTimeout(() => {
+                                if (hostPromotionTimers[roomCode]) clearTimeout(hostPromotionTimers[roomCode]);
+                                hostPromotionTimers[roomCode] = setTimeout(() => {
                                     const finalCheck = roomStates[roomCode];
                                     if (finalCheck && (finalCheck.hostUserId === userId || !io.sockets.sockets.has(finalCheck.host))) {
                                         promoteNewHost(roomCode, io);
@@ -1300,9 +1342,9 @@ function promoteNewHost(roomCode, io, specificSocketId = null) {
     const state = roomStates[roomCode];
     if (!state) return;
 
-    if (state.hostPromotionTimeout) {
-        clearTimeout(state.hostPromotionTimeout);
-        delete state.hostPromotionTimeout;
+    if (hostPromotionTimers[roomCode]) {
+        clearTimeout(hostPromotionTimers[roomCode]);
+        delete hostPromotionTimers[roomCode];
     }
 
     let nextHost = null;
@@ -1404,7 +1446,7 @@ function loadNextPlayer(roomCode, io) {
 
     io.to(roomCode).emit('new_player', {
         player,
-        nextPlayers,
+        nextPlayers: nextPlayers.slice(0, 10), // Limit payload size to next 10 players
         timer: state.timer,
         skippedHistory: state.skippedHistory || []
     });
@@ -1497,7 +1539,7 @@ async function processHammerDown(roomCode, io) {
         io.to(roomCode).emit('player_sold', {
             player: { ...player, name: playerName },
             winningBid: state.currentBid,
-            teams: state.teams
+            teams: lightweightTeams(state.teams)
         });
 
         // Persist Transaction Record
@@ -1656,7 +1698,7 @@ async function endAuction(roomCode, io) {
     const remainingUnsold = state.players.filter(p => !allSoldPlayerIds.includes(String(p._id)));
 
     // Emit transition to selection phase
-    io.to(roomCode).emit('auction_finished', { teams: state.teams, status: 'Selection' });
+    io.to(roomCode).emit('auction_finished', { teams: lightweightTeams(state.teams), status: 'Selection' });
 
     try {
         await AuctionRoom.findOneAndUpdate({ roomId: roomCode }, {

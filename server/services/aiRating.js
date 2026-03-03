@@ -1,4 +1,5 @@
 const { GoogleGenerativeAI } = require('@google/generative-ai');
+const AIQueue = require('./AIQueue');
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 const validateSquad = (team) => {
@@ -160,9 +161,11 @@ No other text. Be an expert, be accurate, focus on legacy and impact.
     for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
         try {
             console.log(`--- AI Evaluation for ${team.teamName} (attempt ${attempt}/${MAX_RETRIES}) ---`);
-            const result = await model.generateContent(prompt);
-            const response = await result.response;
-            const text = response.text();
+            const text = await AIQueue.enqueue(async () => {
+                const result = await model.generateContent(prompt);
+                const response = await result.response;
+                return response.text();
+            });
             const cleanedText = text.replace(/```json/g, '').replace(/```/g, '').trim();
             const parsed = JSON.parse(cleanedText);
             console.log(`--- AI Evaluation SUCCESS for ${team.teamName} on attempt ${attempt} ---`);
@@ -247,9 +250,11 @@ No other text. IDs must be the bracketed strings from above.
 `;
 
     try {
-        const result = await model.generateContent(prompt);
-        const response = await result.response;
-        const text = response.text();
+        const text = await AIQueue.enqueue(async () => {
+            const result = await model.generateContent(prompt);
+            const response = await result.response;
+            return response.text();
+        });
         const cleanedText = text.replace(/```json/g, '').replace(/```/g, '').trim();
         const selection = JSON.parse(cleanedText);
 

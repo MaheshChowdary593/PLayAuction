@@ -58,6 +58,7 @@ const AuctionPodium = () => {
     const [allPlayersMap, setAllPlayersMap] = useState({});
     const [onlineMap, setOnlineMap] = useState({});
     const [coHostUserIds, setCoHostUserIds] = useState(location.state?.roomState?.coHostUserIds || []);
+    const [teamRosters, setTeamRosters] = useState({}); // Lazy-loaded player lists: { teamId: [players] }
 
     useEffect(() => {
         // Fetch players to create a fallback name map in case backend only sends IDs
@@ -114,6 +115,7 @@ const AuctionPodium = () => {
     const [chatMessages, setChatMessages] = useState([]);
     const [chatInput, setChatInput] = useState("");
     const chatEndRef = useRef(null);
+    const myTeamRef = useRef(null);
 
     // Tabs state for Mobile UI
     const [activeTab, setActiveTab] = useState("podium"); // "teams", "podium", "chat"
@@ -136,6 +138,10 @@ const AuctionPodium = () => {
     useEffect(() => {
         chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }, [chatMessages]);
+
+    useEffect(() => {
+        myTeamRef.current = myTeam;
+    }, [myTeam]);
 
     // Periodic sync guard: if socket is ready but currentPlayer is still null,
     // retry the sync every 3s. Stops once a player is found (or the auction hasn't started).
@@ -220,6 +226,12 @@ const AuctionPodium = () => {
 
             if (state.coHostUserIds) setCoHostUserIds(state.coHostUserIds);
 
+            // Request own team roster immediately for War Room view
+            if (myTeamInState) {
+                console.log("[LAZY] Requesting own team roster on join");
+                socket.emit("request_team_roster", { teamId: myTeamInState.id || myTeamInState.franchiseId });
+            }
+
             // High-reliability restoration: check for activePlayer directly in join payload
             if (state.activePlayer) {
                 console.log("Restoring active player from join payload:", state.activePlayer.name);
@@ -281,6 +293,21 @@ const AuctionPodium = () => {
                 if (val > 0 && val <= 3 && val !== prev) playWarningBeep();
                 return val;
             });
+        };
+
+        // Lazy roster loader
+        useEffect(() => {
+            if (expandedTeamId && !teamRosters[expandedTeamId]) {
+                console.log("[LAZY] Requesting roster for expanded team:", expandedTeamId);
+                socket.emit("request_team_roster", { teamId: expandedTeamId });
+            }
+        }, [expandedTeamId, roomCode, teamRosters]);
+
+        const handleVoteSubmit = (playerIds) => {
+            if (!socket || !roomCode || !votingSession) return;
+            socket.emit("submit_interest_votes", { roomCode, playerIds });
+            setShowVotingModal(false);
+            setSelectedVotes([]);
         };
 
         const handleBidPlaced = (payload) => {
@@ -365,6 +392,14 @@ const AuctionPodium = () => {
             setGameState(prev => prev ? { ...prev, coHostUserIds } : null);
         };
 
+        const handleTeamRosterData = ({ teamId, playersAcquired }) => {
+            setTeamRosters(prev => ({ ...prev, [teamId]: playersAcquired }));
+            // If this is my team, sync it immediately
+            if (myTeamRef.current && (myTeamRef.current.id === teamId || myTeamRef.current.franchiseId === teamId)) {
+                setMyTeam(prev => ({ ...prev, playersAcquired }));
+            }
+        };
+
         // --- Attachment ---
         const attemptRejoin = () => {
             socket.emit("join_room", { roomCode, asSpectator: forceSpectator });
@@ -414,6 +449,7 @@ const AuctionPodium = () => {
         });
         socket.on("kicked_from_room", () => navigate("/"));
         socket.on("room_disbanded", () => navigate("/"));
+        socket.on("team_roster_data", handleTeamRosterData);
 
         return () => {
             // Cleanup: remove listeners
@@ -632,12 +668,13 @@ const AuctionPodium = () => {
                         setExpandedTeamId={setExpandedTeamId}
                         allPlayersMap={allPlayersMap}
                         onlineMap={onlineMap}
-                        isHost={isHost}
-                        isPrimaryHost={isPrimaryHost}
+                        isHost={gameState?.host === socket.id}
+                        isPrimaryHost={gameState?.hostUserId ? gameState.hostUserId === userId : gameState?.host === socket.id}
                         coHostUserIds={coHostUserIds}
-                        mySocketId={socket?.id}
-                        onKick={handleKick}
+                        mySocketId={userId || socket.id}
+                        onKick={(sId, name) => setKickTarget({ socketId: sId, name })}
                         onToggleCoHost={handleToggleCoHost}
+                        teamRosters={teamRosters}
                     />
                 </div>
             </div>
