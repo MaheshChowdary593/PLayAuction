@@ -16,9 +16,13 @@ export const SocketProvider = ({ children }) => {
         const newSocket = io(url, {
             path: '/socket.io',
             auth: { token },
+            // Force WebSocket — skips polling handshake, saves ~300ms on every (re)connect
+            transports: ['websocket'],
             reconnection: true,
             reconnectionAttempts: 10,
-            reconnectionDelay: 2000,
+            reconnectionDelay: 1000,
+            reconnectionDelayMax: 5000,
+            timeout: 20000,
         });
 
         newSocket.on('connect', () => {

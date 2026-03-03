@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { motion } from 'framer-motion';
 import confetti from 'canvas-confetti';
 import { playCustomSlam } from '../utils/soundEngine';
+import { fmtCr } from '../utils/playerUtils';
 
 const GavelSlam = ({ type, teamName, teamColor, teamLogo, playerName, winningBid, playerImage }) => {
 
@@ -104,7 +105,7 @@ const GavelSlam = ({ type, teamName, teamColor, teamLogo, playerName, winningBid
                 <text fontSize={isSold && teamName && teamName.length > 15 ? "11" : "13"} fontWeight="900" fill={textColor} letterSpacing="0.5" style={{ fontFamily: 'Outfit, Arial, sans-serif', textShadow: '2px 2px 4px rgba(0,0,0,0.9)', stroke: 'rgba(0,0,0,0.5)', strokeWidth: '0.5px' }}>
                     <textPath href="#curveBottom" startOffset="50%" textAnchor="middle">
                         {isSold
-                            ? `SOLD TO ${teamName ? teamName.toUpperCase().substring(0, 20) : "FRANCHISE"} • ₹${winningBid?.amount || '0'}L`
+                            ? `SOLD TO ${teamName ? teamName.toUpperCase().substring(0, 20) : "FRANCHISE"} • ${fmtCr(winningBid?.amount || 0)}`
                             : "NO BIDS RECEIVED • TRY AGAIN LATER"
                         }
                     </textPath>

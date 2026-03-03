@@ -2,30 +2,54 @@ const { GoogleGenerativeAI } = require('@google/generative-ai');
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 const validateSquad = (team) => {
-    const players = team.playersAcquired;
+    const players = team.playersAcquired || [];
     const squadSize = players.length;
 
     // Minimum 15 players (11 starters + 4 impact)
     if (squadSize < 15) return { valid: false, reason: `Squad has only ${squadSize} players. Minimum 15 required for evaluation.` };
     if (squadSize > 25) return { valid: false, reason: `Squad has ${squadSize} players. Maximum 25 allowed.` };
 
-    let wks = 0;
     let bowlersOrAR = 0;
     let overseas = 0;
 
     players.forEach(p => {
-        // Handle both embedded player doc and flattened structure
-        const playerDoc = p.player || p;
+        /**
+         * Robust Player Detection:
+         * 1. If p.player is an object (nested populate), use it.
+         * 2. If p is an object with role/nationality (flattened or manual eval), use it.
+         * 3. Ignore if p.player is just a string/ID (missing data).
+         */
+        let playerDoc = null;
+        if (p.player && typeof p.player === 'object') playerDoc = p.player;
+        else if (p.role || p.nationality) playerDoc = p;
+
+        if (!playerDoc) {
+            console.warn(`[AI-VAL] Skipping player with missing data: ${p.id || p._id || 'unknown'}`);
+            return;
+        }
+
         const role = (playerDoc.role || '').toLowerCase().trim();
         const nation = (playerDoc.nationality || '').toLowerCase().trim();
 
-        if (role.includes('keep') || role.includes('wk')) wks++;
-        if (role.includes('bowl') || role.includes('all')) bowlersOrAR++;
-        if (nation && nation !== 'india') overseas++;
+        // More flexible role matching for bowlers/all-rounders
+        if (
+            role.includes('bowl') ||
+            role.includes('all') ||
+            role.includes('all-rounder') ||
+            role.includes('spinner') ||
+            role.includes('pacer') ||
+            role.includes('seamer')
+        ) {
+            bowlersOrAR++;
+        }
+
+        // More flexible overseas matching
+        if (nation && !['india', 'indian', 'ind'].includes(nation)) {
+            overseas++;
+        }
     });
 
-    if (wks < 1) return { valid: false, reason: `Squad has no Wicketkeeper. Minimum 1 required.` };
-    if (bowlersOrAR < 5) return { valid: false, reason: `Squad has only ${bowlersOrAR} Bowler(s)/All-rounder(s). Minimum 5 required.` };
+    if (bowlersOrAR < 5) return { valid: false, reason: `Squad has only ${bowlersOrAR} Bowler(s)/All-rounder(s) detected. Minimum 5 required.` };
     if (overseas > 8) return { valid: false, reason: `Squad has ${overseas} Overseas players. Maximum 8 allowed.` };
 
     return { valid: true };
@@ -46,10 +70,27 @@ const evaluateTeam = async (team) => {
 
     const model = genAI.getGenerativeModel({ model: 'gemini-flash-latest' });
 
-    // Preparation for evaluation: Identify slow batsmen, bowling variety, etc.
-    const playing11 = team.playing11 || [];
-    const impactPlayers = team.impactPlayers || [];
-    const bench = team.playersAcquired.filter(p => !playing11.concat(impactPlayers).includes(p.id));
+    // --- Auto-select Playing 11 + Impact if user hasn't done so ---
+    let playing11 = (team.playing11 && team.playing11.length >= 11) ? team.playing11 : [];
+    let impactPlayers = (team.impactPlayers && team.impactPlayers.length >= 4) ? team.impactPlayers : [];
+
+    if (playing11.length < 11 || impactPlayers.length < 4) {
+        console.log(`--- Auto-selecting Playing 11 for ${team.teamName} (user did not select) ---`);
+        try {
+            const autoSelection = await selectPlaying11AndImpact(team.teamName, team.playersAcquired);
+            playing11 = autoSelection.playing11 || [];
+            impactPlayers = autoSelection.impactPlayers || [];
+        } catch (selErr) {
+            console.error('Auto-selection failed, using first 15 as fallback:', selErr.message);
+            // Simple fallback: first 11 + next 4
+            const ids = team.playersAcquired.map(p => String(p.id || p._id));
+            playing11 = ids.slice(0, 11);
+            impactPlayers = ids.slice(11, 15);
+        }
+    }
+
+    const bench = team.playersAcquired.filter(p => !playing11.concat(impactPlayers).includes(String(p.id || p._id)));
+
 
     const prompt = `
 You are an IPL Historian & Analytics Expert. Your goal is to evaluate the drafted squad based on their HISTORICAL IPL IMPACT and performance trends. 
@@ -112,24 +153,76 @@ RESPOND ONLY WITH A VALID JSON OBJECT matching this EXACT structure:
 No other text. Be an expert, be accurate, focus on legacy and impact.
 `;
 
-    try {
-        console.log(`--- AI Evaluation Starting for ${team.teamName} ---`);
-        const result = await model.generateContent(prompt);
-        const response = await result.response;
-        const text = response.text();
-        const cleanedText = text.replace(/```json/g, '').replace(/```/g, '').trim();
-        return JSON.parse(cleanedText);
-    } catch (error) {
-        console.error('Error in AI evaluation:', error);
-        return {
-            battingScore: 0, bowlingScore: 0, balanceScore: 0, impactScore: 0, overallScore: 0,
-            starPlayer: "N/A", hiddenGem: "N/A", playing11: [], impactPlayers: [],
-            tacticalVerdict: "Evaluation failed.",
-            weakness: "No data available.",
-            historicalContext: "N/A"
-        };
+    // Retry Gemini up to 3 times with exponential backoff before any fallback
+    const MAX_RETRIES = 3;
+    let lastError = null;
+
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+        try {
+            console.log(`--- AI Evaluation for ${team.teamName} (attempt ${attempt}/${MAX_RETRIES}) ---`);
+            const result = await model.generateContent(prompt);
+            const response = await result.response;
+            const text = response.text();
+            const cleanedText = text.replace(/```json/g, '').replace(/```/g, '').trim();
+            const parsed = JSON.parse(cleanedText);
+            console.log(`--- AI Evaluation SUCCESS for ${team.teamName} on attempt ${attempt} ---`);
+            return parsed;
+        } catch (err) {
+            lastError = err;
+            console.warn(`--- AI Evaluation attempt ${attempt} FAILED for ${team.teamName}: ${err.message} ---`);
+            if (attempt < MAX_RETRIES) {
+                const waitMs = attempt * 2000; // 2s, 4s
+                console.log(`Retrying in ${waitMs / 1000}s...`);
+                await new Promise(resolve => setTimeout(resolve, waitMs));
+            }
+        }
     }
+
+    // All 3 Gemini attempts failed — use stat-based fallback as last resort
+    console.error(`All ${MAX_RETRIES} Gemini attempts failed for ${team.teamName}. Using stat-based fallback.`, lastError?.message);
+
+    const players = team.playersAcquired || [];
+    const squadSize = players.length;
+
+    let totalRuns = 0, totalWickets = 0, totalSR = 0, totalEcon = 0, srCount = 0, econCount = 0;
+    let wkCount = 0, bowlCount = 0, batCount = 0, arCount = 0;
+
+    players.forEach(p => {
+        const s = p.stats || {};
+        const role = (p.role || '').toLowerCase();
+        totalRuns += (s.runs || 0);
+        totalWickets += (s.wickets || 0);
+        if (s.strikeRate) { totalSR += s.strikeRate; srCount++; }
+        if (s.economy) { totalEcon += s.economy; econCount++; }
+        if (role.includes('wk') || role.includes('keep')) wkCount++;
+        else if (role.includes('all')) arCount++;
+        else if (role.includes('bowl')) bowlCount++;
+        else batCount++;
+    });
+
+    const avgSR = srCount ? totalSR / srCount : 120;
+    const avgEcon = econCount ? totalEcon / econCount : 8;
+
+    const battingScore = Math.min(10, Math.max(1, Math.round((avgSR - 100) / 5 + 5)));
+    const bowlingScore = Math.min(10, Math.max(1, Math.round((10 - avgEcon) + 2)));
+    const balanceScore = Math.min(10, Math.max(1, Math.round((arCount + bowlCount) / 2)));
+    const impactScore = Math.min(10, Math.max(1, Math.round((totalRuns / 500 + totalWickets / 20) / 2)));
+    const overallScore = Math.min(75, Math.max(40, Math.round(
+        (battingScore * 10 + bowlingScore * 10 + balanceScore * 5 + impactScore * 5) / 4
+    )));
+
+    const starPlayer = [...players].sort((a, b) => (b.stats?.runs || 0) - (a.stats?.runs || 0))[0]?.name || 'N/A';
+
+    return {
+        battingScore, bowlingScore, balanceScore, impactScore, overallScore,
+        starPlayer, hiddenGem: 'N/A',
+        playing11: [], impactPlayers: [],
+        tacticalVerdict: `Stat-based estimate (Gemini unavailable after ${MAX_RETRIES} attempts). Squad: ${batCount} Bat, ${arCount} AR, ${bowlCount} Bowl, ${wkCount} WK.`,
+        weakness: 'AI rating unavailable after retries — stat-based fallback used.',
+        historicalContext: 'N/A'
+    };
 };
+
 
 const selectPlaying11AndImpact = async (teamName, players) => {
     const model = genAI.getGenerativeModel({ model: 'gemini-flash-latest' });
@@ -241,5 +334,5 @@ RESPOND ONLY AS JSON: [{"teamName": "Name", "rank": 1}, ...]
     }
 };
 
-module.exports = { evaluateAllTeams, selectPlaying11AndImpact, evaluateTeam };
+module.exports = { evaluateAllTeams, selectPlaying11AndImpact, evaluateTeam, validateSquad };
 

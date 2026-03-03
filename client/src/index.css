@@ -9,33 +9,42 @@
 @tailwind utilities;
 
 :root {
-  --neon-blue: #00d2ff;
+  --neon-blue: #D4AF37;
   --neon-gold: #ffcc33;
-  --dark-depth: #050b18;
-  --card-glass: rgba(15, 23, 42, 0.7);
+  --dark-depth: #0a0702;
+  --darker-depth: #050401;
+  --gold-light: #fef08a;
+  --gold-base: #fbbf24;
+  --gold-dark: #b45309;
+  --card-glass: rgba(26, 18, 5, 0.7);
 }
 
 body {
   margin: 0;
   padding: 0;
-  background: var(--dark-depth);
+  background-color: var(--dark-depth);
+  background-image:
+    radial-gradient(circle at 10% 20%, rgba(251, 191, 36, 0.03) 0%, transparent 40%),
+    radial-gradient(circle at 90% 80%, rgba(251, 191, 36, 0.05) 0%, transparent 50%),
+    radial-gradient(circle at 50% 120%, rgba(251, 191, 36, 0.08) 0%, transparent 60%);
   color: #fff;
   font-family: 'Outfit', sans-serif;
   -webkit-font-smoothing: antialiased;
   overflow-x: hidden;
+  min-height: 100vh;
 }
 
 @layer components {
   .glass-card {
-    @apply bg-slate-900/60 backdrop-blur-xl border border-white/10 shadow-2xl;
+    @apply bg-[#1a1205]/60 backdrop-blur-xl border border-[#D4AF37]/20 shadow-2xl;
   }
 
   .glass-panel {
-    @apply bg-slate-900/40 backdrop-blur-lg border border-white/5;
+    @apply bg-[#1a1205]/40 backdrop-blur-lg border border-[#D4AF37]/10;
   }
 
   .text-glow {
-    text-shadow: 0 0 10px rgba(0, 210, 255, 0.5);
+    text-shadow: 0 0 10px rgba(212, 175, 55, 0.5);
   }
 
   .btn-premium {
@@ -53,7 +62,65 @@ body {
   .neon-border {
     @apply border border-transparent;
     background: linear-gradient(var(--dark-depth), var(--dark-depth)) padding-box,
-      linear-gradient(to right, var(--neon-blue), #9333ea) border-box;
+      linear-gradient(to right, var(--neon-gold), var(--gold-dark)) border-box;
+  }
+
+  /* Cinematic Gold Text */
+  .text-gold-gradient {
+    background: linear-gradient(to bottom, var(--gold-light), var(--gold-base), var(--gold-dark));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* True Cinematic Art Deco Border for Player Card */
+  .cinematic-glow-border {
+    position: relative;
+    background: linear-gradient(135deg, rgba(14, 17, 26, 0.95) 0%, rgba(7, 9, 15, 0.98) 100%);
+    border-radius: 12px;
+    z-index: 1;
+    /* Strong solid gold glow ring behind the exact shape */
+    box-shadow:
+      0 0 0 1px rgba(255, 229, 143, 0.1),
+      0 0 30px rgba(251, 191, 36, 0.4),
+      0 0 60px rgba(251, 191, 36, 0.2);
+  }
+
+  /* The actual double-line intricate golden frame */
+  .cinematic-glow-border::before {
+    content: '';
+    position: absolute;
+    inset: -3px;
+    border-radius: 15px;
+    padding: 3px;
+    /* Creates the complex metallic gradient border */
+    background: linear-gradient(180deg,
+        #FFE58F 0%,
+        #D4AF37 20%,
+        #996515 50%,
+        #D4AF37 80%,
+        #FFE58F 100%);
+    -webkit-mask:
+      linear-gradient(#fff 0 0) content-box,
+      linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    z-index: 2;
+    pointer-events: none;
+  }
+
+  /* Inner thin line frame for the Art Deco Look */
+  .cinematic-glow-border::after {
+    content: '';
+    position: absolute;
+    inset: 4px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 229, 143, 0.4);
+    pointer-events: none;
+    z-index: 3;
+    /* Corner notch effect via clip-path */
+    clip-path: polygon(15px 0, calc(100% - 15px) 0, 100% 15px, 100% calc(100% - 15px),
+        calc(100% - 15px) 100%, 15px 100%, 0 calc(100% - 15px), 0 15px);
   }
 
   .gold-ornate-border {
@@ -66,6 +133,20 @@ body {
     content: '';
     @apply absolute inset-1 border border-yellow-400/30;
   }
+}
+
+/* Precision Background Simulator (Navy + Gold Concentric Arcs) */
+.bg-sweeping-lines {
+  background-color: #0a0702;
+  /* Deep rich navy-black */
+  background-image:
+    /* Bottom Right Concentric Glows */
+    repeating-radial-gradient(circle at 110% 110%, transparent 0, transparent 40px, rgba(212, 175, 55, 0.06) 41px, transparent 42px),
+    repeating-radial-gradient(circle at 110% 110%, transparent 0, transparent 85px, rgba(212, 175, 55, 0.08) 86px, transparent 88px),
+    /* Top Left Subtle Sweeps */
+    repeating-radial-gradient(circle at -10% -10%, transparent 0, transparent 150px, rgba(212, 175, 55, 0.03) 151px, transparent 152px),
+    /* Central soft cinematic spotlight */
+    radial-gradient(circle at 40% 50%, rgba(30, 40, 60, 0.4) 0%, transparent 60%);
 }
 
 @layer utilities {
@@ -113,5 +194,5 @@ body {
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--neon-blue);
+  background: #D4AF37;
 }

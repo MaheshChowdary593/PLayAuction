@@ -52,6 +52,7 @@ const Lobby = () => {
   const [joinRequests, setJoinRequests] = useState([]);
   // Online status map: { [ownerSocketId]: boolean }
   const [onlineMap, setOnlineMap] = useState({});
+  const [coHostUserIds, setCoHostUserIds] = useState([]);
 
   // Confirmation state for leaving room
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
@@ -115,6 +116,16 @@ const Lobby = () => {
     }
   }, [location.state, playerName, socket, navigate]);
 
+  // Auto-join for returning users (e.g. reopened tab / direct join link with session)
+  useEffect(() => {
+    if (urlRoomCode && playerName && socket && !isJoined && !isAutoJoining) {
+      // Only trigger if we aren't already in the "Enter Arena" flow manually
+      // and we have a valid session. This saves the user a click.
+      console.log("[AUTO-JOIN] Re-identifying for room:", urlRoomCode);
+      handleJoin(urlRoomCode.toUpperCase());
+    }
+  }, [urlRoomCode, playerName, socket, isJoined, isAutoJoining]);
+
   useEffect(() => {
     if (!socket) return;
 
@@ -129,6 +140,7 @@ const Lobby = () => {
       setIsJoined(true);
       setError("");
       setIsAutoJoining(false); // Reset auto-join state
+      setCoHostUserIds(state.coHostUserIds || []);
       // Detect if the current user is a spectator (not a team owner)
       const amSpectator = state.spectators?.some((s) => s.socketId === socket.id);
       setIsSpectatorMode(amSpectator || false);
@@ -160,6 +172,11 @@ const Lobby = () => {
       setJoinRequests(requests);
     });
 
+    socket.on("cohosts_updated", ({ coHostUserIds }) => {
+      setCoHostUserIds(coHostUserIds);
+      setRoomState(prev => prev ? { ...prev, coHostUserIds } : null);
+    });
+
     socket.on("player_status_update", ({ onlineMap }) => {
       setOnlineMap((prev) => ({ ...prev, ...onlineMap }));
     });
@@ -175,6 +192,11 @@ const Lobby = () => {
     socket.on("error", (msg) => {
       setError(msg);
       setIsAutoJoining(false); // Reset auto-join state on error
+    });
+
+    socket.on("name_taken", ({ message }) => {
+      setError(message || 'Name already taken in this room. Please use a different name.');
+      setIsAutoJoining(false); // Let the user change their name and retry
     });
 
     socket.on("auction_started", ({ state }) => {
@@ -205,6 +227,8 @@ const Lobby = () => {
       socket.off("spectator_update");
       socket.off("join_requests_update");
       socket.off("player_status_update");
+      socket.off("cohosts_updated");
+      socket.off("name_taken");
     };
   }, [socket, navigate]);
 
@@ -264,6 +288,9 @@ const Lobby = () => {
   const handleStart = () => {
     socket.emit("start_auction", { roomCode: roomState.roomCode });
   };
+  const handleToggleCoHost = (targetUserId) => {
+    socket.emit("toggle_cohost", { roomCode: roomState.roomCode, userId: targetUserId });
+  };
 
   const handleLeaveRoom = () => {
     setShowLeaveConfirm(true);
@@ -288,13 +315,29 @@ const Lobby = () => {
     (userId && t.ownerUserId === userId)
   );
   const hasClaimedTeam = !!myTeam;
-  const isHost = roomState?.host === socket?.id || (userId && roomState?.hostUserId === userId);
+  const isPrimaryHost = (userId && roomState?.hostUserId === userId) || roomState?.host === socket?.id;
+  const isCoHost = userId && coHostUserIds.includes(userId);
+  const isModerator = isPrimaryHost || isCoHost;
+  const isHost = isPrimaryHost; // Keep variable name for older UI components if needed
 
   // Use available teams from state if present, otherwise fallback to IPL_TEAMS
   const displayTeams = availableTeamsForRoom || IPL_TEAMS;
 
   return (
     <div className="h-screen w-screen flex items-center justify-center p-6 relative overflow-hidden">
+
+      {/* Full-screen video background */}
+      <video
+        autoPlay
+        loop
+        muted
+        playsInline
+        className="absolute inset-0 w-full h-full object-cover z-0"
+        src="/Auction-bg.mp4"
+      />
+      {/* Dark overlay so text stays legible */}
+      <div className="absolute inset-0 bg-black/60 z-[1]" />
+
 
       <div className="w-full max-w-5xl grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 items-center relative z-10 py-10 lg:py-0 overflow-y-auto lg:overflow-visible h-full lg:h-auto custom-scrollbar">
         {/* Brand Side - Conditional: Brand or Rules */}
@@ -344,7 +387,7 @@ const Lobby = () => {
                   </motion.div>
                   <h1 className="text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-black italic tracking-tighter leading-none text-white uppercase mb-4">
                     IPL{" "}
-                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-500">
+                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#FFE58F] to-[#D4AF37]">
                       Auction
                     </span>
                   </h1>
@@ -356,14 +399,14 @@ const Lobby = () => {
 
                 <div className="flex flex-wrap gap-4">
                   <div className="px-4 md:px-5 py-2 md:py-3 glass-panel rounded-xl md:rounded-2xl border-white/5 flex items-center gap-3">
-                    <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
-                    <span className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-slate-400">
+                    <div className="w-2 h-2 rounded-full bg-[#FFE58F] animate-pulse"></div>
+                    <span className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-[#D4AF37]">
                       Low Latency Engine
                     </span>
                   </div>
                   <div className="px-4 md:px-5 py-2 md:py-3 glass-panel rounded-xl md:rounded-2xl border-white/5 flex items-center gap-3">
-                    <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></div>
-                    <span className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-slate-400">
+                    <div className="w-2 h-2 rounded-full bg-[#D4AF37] animate-pulse"></div>
+                    <span className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-[#D4AF37]">
                       Gemini AI Ratings
                     </span>
                   </div>
@@ -380,62 +423,62 @@ const Lobby = () => {
                 {/* Rules Section (Now the main content) */}
                 <div className="space-y-2 mb-6">
                   <h2 className="text-3xl font-black italic tracking-tighter text-white uppercase">
-                    Auction <span className="text-blue-400">Directives</span>
+                    Auction <span className="text-[#FFE58F]">Directives</span>
                   </h2>
-                  <p className="text-slate-500 text-xs font-bold uppercase tracking-widest">Mandatory Squad Compliance</p>
+                  <p className="text-[#D4AF37]/70 text-xs font-bold uppercase tracking-widest">Mandatory Squad Compliance</p>
                 </div>
 
-                <div className="glass-panel p-6 sm:p-8 rounded-[32px] border-white/5 space-y-6 max-w-md shadow-2xl bg-white/5 backdrop-blur-sm">
+                <div className="glass-panel p-6 sm:p-8 rounded-[32px] border-[#D4AF37]/20 space-y-6 max-w-md shadow-2xl bg-[#0a0702]/80 backdrop-blur-md">
                   <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-4">
                     <li className="flex items-start gap-4">
-                      <div className="w-2 h-2 rounded-full bg-blue-500 mt-2 shrink-0 shadow-[0_0_10px_rgba(59,130,246,0.5)]"></div>
-                      <p className="text-[11px] text-slate-400 font-bold leading-relaxed">
-                        <span className="text-slate-200 uppercase tracking-tighter mr-1 block sm:inline">Squad Size:</span>
-                        Min <span className="text-blue-400">18</span> — Max <span className="text-blue-400">25</span>.
+                      <div className="w-2 h-2 rounded-full bg-[#FFE58F] mt-2 shrink-0 shadow-[0_0_10px_rgba(255,229,143,0.5)]"></div>
+                      <p className="text-[11px] text-[#D4AF37]/80 font-bold leading-relaxed">
+                        <span className="text-[#FFE58F] uppercase tracking-tighter mr-1 block sm:inline">Squad Size:</span>
+                        Min <span className="text-[#FFE58F]">18</span> — Max <span className="text-[#FFE58F]">25</span>.
                       </p>
                     </li>
                     <li className="flex items-start gap-4">
-                      <div className="w-2 h-2 rounded-full bg-purple-500 mt-2 shrink-0 shadow-[0_0_10px_rgba(168,85,247,0.5)]"></div>
-                      <p className="text-[11px] text-slate-400 font-bold leading-relaxed">
-                        <span className="text-slate-200 uppercase tracking-tighter mr-1 block sm:inline">Overseas:</span>
-                        Max <span className="text-purple-400">8</span> foreign players.
+                      <div className="w-2 h-2 rounded-full bg-[#D4AF37] mt-2 shrink-0 shadow-[0_0_10px_rgba(212,175,55,0.5)]"></div>
+                      <p className="text-[11px] text-[#D4AF37]/80 font-bold leading-relaxed">
+                        <span className="text-[#FFE58F] uppercase tracking-tighter mr-1 block sm:inline">Overseas:</span>
+                        Max <span className="text-[#FFE58F]">8</span> foreign players.
                       </p>
                     </li>
                     <li className="flex items-start gap-4">
-                      <div className="w-2 h-2 rounded-full bg-green-500 mt-2 shrink-0 shadow-[0_0_10px_rgba(34,197,94,0.5)]"></div>
-                      <p className="text-[11px] text-slate-400 font-bold leading-relaxed">
-                        <span className="text-slate-200 uppercase tracking-tighter mr-1 block sm:inline">Bowling:</span>
-                        Min <span className="text-green-400">6</span> specialist options.
+                      <div className="w-2 h-2 rounded-full bg-[#FFE58F] mt-2 shrink-0 shadow-[0_0_10px_rgba(255,229,143,0.5)]"></div>
+                      <p className="text-[11px] text-[#D4AF37]/80 font-bold leading-relaxed">
+                        <span className="text-[#FFE58F] uppercase tracking-tighter mr-1 block sm:inline">Bowling:</span>
+                        Min <span className="text-[#FFE58F]">6</span> specialist options.
                       </p>
                     </li>
                     <li className="flex items-start gap-4">
-                      <div className="w-2 h-2 rounded-full bg-yellow-500 mt-2 shrink-0 shadow-[0_0_10px_rgba(234,179,8,0.5)]"></div>
-                      <p className="text-[11px] text-slate-400 font-bold leading-relaxed">
-                        <span className="text-slate-200 uppercase tracking-tighter mr-1 block sm:inline">Keeping:</span>
-                        Minimum <span className="text-yellow-400">2</span> WK required.
+                      <div className="w-2 h-2 rounded-full bg-[#D4AF37] mt-2 shrink-0 shadow-[0_0_10px_rgba(212,175,55,0.5)]"></div>
+                      <p className="text-[11px] text-[#D4AF37]/80 font-bold leading-relaxed">
+                        <span className="text-[#FFE58F] uppercase tracking-tighter mr-1 block sm:inline">Keeping:</span>
+                        Minimum <span className="text-[#FFE58F]">2</span> WK required.
                       </p>
                     </li>
                   </ul>
 
-                  <div className="pt-6 border-t border-white/5">
+                  <div className="pt-6 border-t border-[#D4AF37]/20">
                     <div className="flex items-center gap-2 mb-3">
-                      <span className="text-[9px] font-black text-blue-400 uppercase tracking-[0.2em]">Evaluation Metrics</span>
-                      <div className="h-px flex-1 bg-blue-500/10"></div>
+                      <span className="text-[9px] font-black text-[#FFE58F] uppercase tracking-[0.2em]">Evaluation Metrics</span>
+                      <div className="h-px flex-1 bg-[#D4AF37]/20"></div>
                     </div>
-                    <p className="text-[11px] text-slate-500 font-medium leading-relaxed">
-                      AI analyzes your <span className="text-slate-300">11+4 core</span> for T20 viability, <span className="text-slate-300">Strike Rate</span>, and variety.
+                    <p className="text-[11px] text-[#D4AF37]/60 font-medium leading-relaxed">
+                      AI analyzes your <span className="text-[#FFE58F]">11+4 core</span> for T20 viability, <span className="text-[#FFE58F]">Strike Rate</span>, and variety.
                     </p>
                   </div>
 
                   {/* Disqualification Note */}
-                  <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-2xl flex items-start gap-3 shadow-[0_0_15px_rgba(239,68,68,0.1)]">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="mt-0.5 shrink-0">
+                  <div className="p-4 bg-[#D4AF37]/5 border border-[#D4AF37]/20 rounded-2xl flex items-start gap-3 shadow-[0_0_15px_rgba(212,175,55,0.1)]">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#D4AF37" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="mt-0.5 shrink-0">
                       <circle cx="12" cy="12" r="10" />
                       <line x1="12" y1="8" x2="12" y2="12" />
                       <line x1="12" y1="16" x2="12.01" y2="16" />
                     </svg>
-                    <p className="text-[10px] text-red-400 font-black leading-tight uppercase tracking-tight">
-                      Violation results in <span className="text-white underline decoration-red-500 underline-offset-2">Immediate Disqualification</span>. No zero rating will be given.
+                    <p className="text-[10px] text-[#D4AF37] font-black leading-tight uppercase tracking-tight">
+                      Violation results in <span className="text-[#FFE58F] underline decoration-[#D4AF37] underline-offset-2">Immediate Disqualification</span>. No zero rating will be given.
                     </p>
                   </div>
                 </div>
@@ -448,7 +491,7 @@ const Lobby = () => {
         <motion.div
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
-          className="glass-card rounded-[32px] md:rounded-[40px] p-6 sm:p-8 lg:p-10 border-white/5 relative bg-white/5 backdrop-blur-xl shadow-2xl"
+          className="glass-card rounded-[32px] md:rounded-[40px] p-6 sm:p-8 lg:p-10 border-[#D4AF37]/20 relative bg-[#0a0702]/80 backdrop-blur-xl shadow-2xl"
         >
           <AnimatePresence mode="wait">
             {!isJoined ? (
@@ -461,10 +504,10 @@ const Lobby = () => {
               >
                 {isDirectJoining && (
                   <div className="text-center space-y-2 mb-8">
-                    <h2 className="text-[10px] font-black text-blue-400 uppercase tracking-[0.3em]">
+                    <h2 className="text-[10px] font-black text-[#D4AF37] uppercase tracking-[0.3em]">
                       Direct Invitation
                     </h2>
-                    <div className="text-4xl font-black text-white tracking-[0.1em]">
+                    <div className="text-4xl font-black text-[#FFE58F] tracking-[0.1em]">
                       {roomCodeInput}
                     </div>
                   </div>
@@ -472,20 +515,20 @@ const Lobby = () => {
 
                 <div className="space-y-4">
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">
+                    <label className="text-[10px] font-black text-[#D4AF37]/70 uppercase tracking-widest ml-1">
                       {isDirectJoining ? "Identify Yourself" : "The Gaffer's Name"}
                     </label>
                     <div className="relative group">
                       <input
                         type="text"
                         placeholder="Enter your name..."
-                        className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 focus:outline-none focus:border-blue-500/50 text-white font-bold transition-all"
+                        className="w-full bg-[#D4AF37]/5 border border-[#D4AF37]/20 rounded-2xl px-6 py-4 focus:outline-none focus:border-[#D4AF37] text-[#FFE58F] font-bold transition-all placeholder:text-[#D4AF37]/40"
                         value={localNameInput}
                         onChange={(e) => setLocalNameInput(e.target.value)}
                       />
                       {playerName && playerName === localNameInput && (
                         <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-3">
-                          <span className="hidden md:inline-block text-[8px] font-black text-blue-400 uppercase tracking-widest bg-blue-500/10 px-2 py-1 rounded-md border border-blue-500/20">
+                          <span className="hidden md:inline-block text-[8px] font-black text-[#D4AF37] uppercase tracking-widest bg-[#D4AF37]/10 px-2 py-1 rounded-md border border-[#D4AF37]/20">
                             Session Active
                           </span>
                           <button
@@ -493,7 +536,7 @@ const Lobby = () => {
                               localStorage.removeItem('ipl_session_token');
                               window.location.reload();
                             }}
-                            className="text-[8px] font-black text-red-500 hover:text-red-400 uppercase tracking-widest bg-red-500/10 px-2 py-1 rounded-md border border-red-500/20 transition-colors"
+                            className="text-[8px] font-black text-[#1a1205] hover:bg-[#FFE58F] uppercase tracking-widest bg-[#D4AF37] px-2 py-1 rounded-md border border-[#D4AF37] transition-colors shadow-lg"
                             title="Sign out and join as a different player"
                           >
                             Not you?
@@ -508,13 +551,13 @@ const Lobby = () => {
                       <div className="flex gap-2">
                         <button
                           onClick={() => setCreatingRoomType("private")}
-                          className={`flex-1 py-3 rounded-xl border font-bold text-[10px] tracking-widest uppercase transition-all ${creatingRoomType === "private" ? "bg-purple-600 border-purple-500 text-white" : "bg-white/5 border-white/10 text-slate-400 hover:bg-white/10"}`}
+                          className={`flex-1 py-3 rounded-xl border font-bold text-[10px] tracking-widest uppercase transition-all ${creatingRoomType === "private" ? "bg-[#D4AF37] border-[#FFE58F] text-[#1a1205]" : "bg-[#D4AF37]/5 border-[#D4AF37]/20 text-[#D4AF37]/60 hover:bg-[#D4AF37]/10"}`}
                         >
                           Private Room
                         </button>
                         <button
                           onClick={() => setCreatingRoomType("public")}
-                          className={`flex-1 py-3 rounded-xl border font-bold text-[10px] tracking-widest uppercase transition-all ${creatingRoomType === "public" ? "bg-blue-600 border-blue-500 text-white" : "bg-white/5 border-white/10 text-slate-400 hover:bg-white/10"}`}
+                          className={`flex-1 py-3 rounded-xl border font-bold text-[10px] tracking-widest uppercase transition-all ${creatingRoomType === "public" ? "bg-[#D4AF37] border-[#FFE58F] text-[#1a1205]" : "bg-[#D4AF37]/5 border-[#D4AF37]/20 text-[#D4AF37]/60 hover:bg-[#D4AF37]/10"}`}
                         >
                           Public Room
                         </button>
@@ -527,18 +570,18 @@ const Lobby = () => {
                       </button>
 
                       <div className="flex items-center gap-4 my-6">
-                        <div className="h-px bg-white/10 flex-1"></div>
-                        <span className="text-[10px] font-black text-slate-600 uppercase tracking-widest">
+                        <div className="h-px bg-[#D4AF37]/20 flex-1"></div>
+                        <span className="text-[10px] font-black text-[#D4AF37]/50 uppercase tracking-widest">
                           OR JOIN EXISTING
                         </span>
-                        <div className="h-px bg-white/10 flex-1"></div>
+                        <div className="h-px bg-[#D4AF37]/20 flex-1"></div>
                       </div>
 
                       <div className="flex flex-col sm:flex-row gap-2">
                         <input
                           type="text"
                           placeholder="Enter Room Code"
-                          className="w-full sm:w-2/3 bg-white/5 border border-white/10 rounded-2xl px-4 py-4 text-center text-white font-black tracking-[0.2em] focus:outline-none focus:border-purple-500/50 uppercase"
+                          className="w-full sm:w-2/3 bg-[#D4AF37]/5 border border-[#D4AF37]/20 rounded-2xl px-4 py-4 text-center text-[#FFE58F] font-black tracking-[0.2em] focus:outline-none focus:border-[#D4AF37] uppercase"
                           value={roomCodeInput}
                           onChange={(e) =>
                             setRoomCodeInput(e.target.value.toUpperCase())
@@ -546,13 +589,13 @@ const Lobby = () => {
                         />
                         <button
                           onClick={() => handleJoin(roomCodeInput)}
-                          className="w-full sm:flex-1 bg-blue-600 hover:bg-blue-500 text-white font-black py-4 rounded-2xl transition-all uppercase text-[10px] tracking-wider shadow-[0_0_20px_rgba(37,99,235,0.4)]"
+                          className="w-full sm:flex-1 bg-[#D4AF37] hover:bg-[#FFE58F] text-[#1a1205] font-black py-4 rounded-2xl transition-all uppercase text-[10px] tracking-wider shadow-[0_0_20px_rgba(212,175,55,0.4)]"
                         >
                           JOIN
                         </button>
                         <button
                           onClick={() => handleSpectate(roomCodeInput)}
-                          className="w-full sm:flex-1 bg-purple-600/20 hover:bg-purple-600/40 border border-purple-500/30 text-purple-400 hover:text-purple-300 font-black py-4 rounded-2xl transition-all uppercase text-[10px] tracking-wider"
+                          className="w-full sm:flex-1 bg-[#D4AF37]/10 hover:bg-[#D4AF37]/30 border border-[#D4AF37]/30 text-[#FFE58F] hover:text-[#FFF3B0] font-black py-4 rounded-2xl transition-all uppercase text-[10px] tracking-wider"
                         >
                           👁 SPECTATE
                         </button>
@@ -563,14 +606,14 @@ const Lobby = () => {
                       <button
                         onClick={() => handleJoin(roomCodeInput)}
                         disabled={isAutoJoining}
-                        className="w-full bg-blue-600 hover:bg-blue-500 text-white font-black py-5 rounded-2xl transition-all uppercase text-[12px] tracking-widest shadow-[0_0_20px_rgba(37,99,235,0.4)] disabled:opacity-50"
+                        className="w-full bg-[#D4AF37] hover:bg-[#FFE58F] text-[#1a1205] font-black py-5 rounded-2xl transition-all uppercase text-[12px] tracking-widest shadow-[0_0_20px_rgba(212,175,55,0.4)] disabled:opacity-50"
                       >
                         {isAutoJoining ? "JOINING..." : `ENTER ARENA "${roomCodeInput}"`}
                       </button>
                       <button
                         onClick={() => handleSpectate(roomCodeInput)}
                         disabled={isAutoJoining}
-                        className="w-full bg-purple-600/20 hover:bg-purple-600/40 border border-purple-500/30 text-purple-400 hover:text-purple-300 font-black py-4 rounded-2xl transition-all uppercase text-[10px] tracking-wider disabled:opacity-50"
+                        className="w-full bg-[#D4AF37]/10 hover:bg-[#D4AF37]/30 border border-[#D4AF37]/30 text-[#FFE58F] hover:text-[#FFF3B0] font-black py-4 rounded-2xl transition-all uppercase text-[10px] tracking-wider disabled:opacity-50"
                       >
                         👁 SPECTATE ONLY
                       </button>
@@ -580,7 +623,7 @@ const Lobby = () => {
                           setIsDirectJoining(false);
                           navigate("/", { replace: true });
                         }}
-                        className="text-[10px] font-black text-slate-500 hover:text-white uppercase tracking-[0.2em] transition-colors mt-4"
+                        className="text-[10px] font-black text-[#D4AF37]/60 hover:text-[#FFE58F] uppercase tracking-[0.2em] transition-colors mt-4"
                       >
                         ← Back to Main Lobby
                       </button>
@@ -589,25 +632,25 @@ const Lobby = () => {
                 </div>
 
                 {error && (
-                  <p className="text-red-500 text-[10px] font-black uppercase tracking-widest text-center mt-2">
+                  <p className="text-[#D4AF37] text-[10px] font-black uppercase tracking-widest text-center mt-2 bg-[#D4AF37]/10 py-2 border border-[#D4AF37]/20 rounded-md">
                     {error}
                   </p>
                 )}
 
                 {!isDirectJoining && (
-                  <div className="mt-8 pt-6 border-t border-white/10">
+                  <div className="mt-8 pt-6 border-t border-[#D4AF37]/20">
                     <button
                       onClick={() => navigate("/public-rooms")}
-                      className="w-full flex items-center justify-between p-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl transition-all group"
+                      className="w-full flex items-center justify-between p-4 bg-[#D4AF37]/5 hover:bg-[#D4AF37]/10 border border-[#D4AF37]/20 rounded-2xl transition-all group shadow-inner"
                     >
                       <div className="flex items-center gap-3">
-                        <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
-                        <span className="text-[10px] font-black text-green-400 uppercase tracking-[0.2em] group-hover:text-green-300 transition-colors">
+                        <div className="w-2 h-2 rounded-full bg-[#FFE58F] animate-pulse shadow-[0_0_10px_#FFE58F]"></div>
+                        <span className="text-[10px] font-black text-[#FFE58F] uppercase tracking-[0.2em] group-hover:text-[#FFF3B0] transition-colors">
                           Explore Public Caucuses
                         </span>
                       </div>
                       <svg
-                        className="w-5 h-5 text-slate-400 transform -rotate-90 group-hover:translate-x-1 transition-transform"
+                        className="w-5 h-5 text-[#D4AF37] transform -rotate-90 group-hover:translate-x-1 transition-transform"
                         fill="none"
                         stroke="currentColor"
                         viewBox="0 0 24 24"
@@ -633,7 +676,7 @@ const Lobby = () => {
                 {/* Back / Leave Room Button */}
                 <button
                   onClick={handleLeaveRoom}
-                  className="absolute -top-2 -left-2 md:-top-6 md:-left-6 text-slate-400 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 p-2 md:p-3 rounded-full transition-all group z-20"
+                  className="absolute -top-2 -left-2 md:-top-6 md:-left-6 text-[#D4AF37]/60 hover:text-[#FFE58F] bg-[#D4AF37]/5 hover:bg-[#D4AF37]/10 border border-[#D4AF37]/20 p-2 md:p-3 rounded-full transition-all group z-20"
                   title="Leave Room & Return to Lobby"
                 >
                   <svg
@@ -652,23 +695,23 @@ const Lobby = () => {
                 </button>
 
                 <div className="text-center pt-2 relative">
-                  <h2 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] mb-2 mt-4 md:mt-0">
+                  <h2 className="text-[10px] font-black text-[#D4AF37]/60 uppercase tracking-[0.3em] mb-2 mt-4 md:mt-0">
                     Room Assigned
                   </h2>
                   <div className="flex items-center justify-center gap-3">
-                    <div className="text-5xl font-black text-white tracking-[0.1em]">
+                    <div className="text-5xl font-black text-[#FFE58F] tracking-[0.1em]">
                       {roomState.roomCode}
                     </div>
                     <button
                       onClick={handleCopyLink}
-                      className="p-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-slate-400 hover:text-white transition-all focus:outline-none"
+                      className="p-2 bg-[#D4AF37]/5 hover:bg-[#D4AF37]/10 border border-[#D4AF37]/20 rounded-xl text-[#D4AF37]/70 hover:text-[#FFE58F] transition-all focus:outline-none"
                       title="Copy Join Link"
                     >
-                      {copied ? <Check className="w-5 h-5 text-green-400" /> : <Copy className="w-5 h-5" />}
+                      {copied ? <Check className="w-5 h-5 text-[#FFE58F]" /> : <Copy className="w-5 h-5" />}
                     </button>
                     <button
                       onClick={handleShareWhatsapp}
-                      className="p-2 bg-green-500/10 hover:bg-green-500/20 border border-green-500/20 rounded-xl text-green-500 hover:text-green-400 transition-all focus:outline-none"
+                      className="p-2 bg-[#D4AF37]/10 hover:bg-[#D4AF37]/20 border border-[#D4AF37]/20 rounded-xl text-[#D4AF37] hover:text-[#FFE58F] transition-all focus:outline-none"
                       title="Share via WhatsApp"
                     >
                       <FaWhatsapp className="w-5 h-5" />
@@ -678,30 +721,30 @@ const Lobby = () => {
 
                 {isSpectatorMode ? (
                   /* Spectator waiting panel — no franchise selection */
-                  <div className="space-y-4 bg-purple-500/5 border border-purple-500/20 p-6 rounded-3xl text-center">
-                    <div className="w-14 h-14 rounded-full bg-purple-500/10 flex items-center justify-center mx-auto">
-                      <svg className="w-7 h-7 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div className="space-y-4 bg-[#D4AF37]/5 border border-[#D4AF37]/20 p-6 rounded-3xl text-center">
+                    <div className="w-14 h-14 rounded-full bg-[#D4AF37]/10 flex items-center justify-center mx-auto">
+                      <svg className="w-7 h-7 text-[#FFE58F]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                       </svg>
                     </div>
                     <div>
-                      <p className="text-purple-300 font-black uppercase tracking-widest text-xs mb-1">Spectator Mode</p>
-                      <p className="text-slate-400 text-[11px] font-medium">
+                      <p className="text-[#FFE58F] font-black uppercase tracking-widest text-xs mb-1">Spectator Mode</p>
+                      <p className="text-[#D4AF37]/70 text-[11px] font-medium">
                         You're watching this auction as a spectator. You cannot claim a franchise or bid.<br />
                         Once the auction starts, you can request the host to participate.
                       </p>
                     </div>
                     <button
                       onClick={() => setShowLeaveConfirm(true)}
-                      className="mt-2 px-5 py-2.5 rounded-xl bg-white/5 border border-white/10 text-slate-400 hover:text-white hover:bg-white/10 transition-all text-[10px] font-black uppercase tracking-widest"
+                      className="mt-2 px-5 py-2.5 rounded-xl bg-[#D4AF37]/10 border border-[#D4AF37]/20 text-[#D4AF37] hover:bg-[#FFE58F] hover:text-[#1a1205] transition-all text-[10px] font-black uppercase tracking-widest"
                     >
                       Leave Room
                     </button>
                   </div>
                 ) : !hasClaimedTeam ? (
-                  <div className="space-y-4 bg-white/5 p-4 rounded-3xl border border-white/10">
-                    <h3 className="text-[10px] font-black text-blue-400 uppercase tracking-widest text-center">
+                  <div className="space-y-4 bg-[#D4AF37]/5 p-4 rounded-3xl border border-[#D4AF37]/20">
+                    <h3 className="text-[10px] font-black text-[#FFE58F] uppercase tracking-widest text-center">
                       Step 2: Claim Your Franchise
                     </h3>
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 max-h-48 overflow-y-auto custom-scrollbar pr-2">
@@ -723,16 +766,16 @@ const Lobby = () => {
                             disabled={isClaimed}
                             className={`p-2 rounded-xl border text-[9px] font-black tracking-wider uppercase transition-all flex flex-col items-center justify-center gap-2 relative overflow-hidden
                                                             ${isClaimed
-                                ? "bg-black/40 border-slate-800 opacity-50 cursor-not-allowed grayscale"
+                                ? "bg-[#0a0702]/80 border-[#D4AF37]/20 opacity-50 cursor-not-allowed grayscale"
                                 : selectedTeamId ===
                                   tId
-                                  ? "bg-blue-500/40 border-blue-400 shadow-[0_0_15px_rgba(59,130,246,0.3)] scale-105 z-10"
-                                  : "bg-white/5 border-white/5 hover:bg-white/10"
+                                  ? "bg-[#D4AF37]/90 border-[#FFE58F] shadow-[0_0_15px_rgba(212,175,55,0.4)] scale-105 z-10 text-[#1a1205]"
+                                  : "bg-[#D4AF37]/5 border-[#D4AF37]/10 hover:bg-[#D4AF37]/20 text-[#D4AF37]/80"
                               }`}
                           >
                             {isClaimed && (
-                              <div className="absolute inset-0 bg-red-900/20 flex items-center justify-center backdrop-blur-[1px] z-20">
-                                <span className="bg-red-600 text-white text-[8px] px-2 py-0.5 rounded shadow-lg transform -rotate-12">
+                              <div className="absolute inset-0 bg-[#0a0702]/60 flex items-center justify-center backdrop-blur-[1px] z-20">
+                                <span className="bg-[#1a1205] text-[#D4AF37] border border-[#D4AF37]/50 text-[8px] px-2 py-0.5 rounded shadow-lg transform -rotate-12">
                                   CLAIMED
                                 </span>
                               </div>
@@ -743,7 +786,7 @@ const Lobby = () => {
                               className={`w-10 h-10 object-contain drop-shadow-lg ${isClaimed ? "opacity-40" : ""}`}
                             />
                             <span
-                              className={`truncate w-full text-center ${isClaimed ? "text-slate-600 line-through" : "text-slate-300"}`}
+                              className={`truncate w-full text-center ${isClaimed ? "text-[#D4AF37]/40 line-through" : selectedTeamId === tId ? "text-[#1a1205]" : "text-[#D4AF37]"}`}
                             >
                               {tId}
                             </span>
@@ -753,26 +796,26 @@ const Lobby = () => {
                     </div>
                     <button
                       onClick={handleClaimTeam}
-                      className="w-full bg-blue-600 text-white font-black py-3 rounded-xl hover:bg-blue-500 transition-all uppercase tracking-widest text-[10px] mt-2"
+                      className="w-full bg-[#D4AF37] text-[#1a1205] font-black py-3 rounded-xl hover:bg-[#FFE58F] transition-all uppercase tracking-widest text-[10px] mt-2 shadow-[0_0_15px_rgba(212,175,55,0.4)]"
                     >
                       SECURE FRANCHISE
                     </button>
                     {error && (
-                      <p className="text-red-500 text-[10px] font-black uppercase tracking-widest text-center">
+                      <p className="text-[#D4AF37] text-[10px] font-black uppercase tracking-widest text-center">
                         {error}
                       </p>
                     )}
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">
+                    <h3 className="text-[10px] font-black text-[#D4AF37]/60 uppercase tracking-widest ml-1">
                       Connected Owners
                     </h3>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[250px] overflow-y-auto custom-scrollbar pr-2">
                       {roomState.teams.map((t, i) => (
                         <div
                           key={i}
-                          className="glass-panel p-4 rounded-2xl border-white/5 flex items-center gap-3 relative"
+                          className="glass-panel p-4 rounded-2xl border-[#D4AF37]/20 flex items-center gap-3 relative"
                         >
                           <div
                             className="w-1.5 h-6 rounded-full"
@@ -780,7 +823,7 @@ const Lobby = () => {
                           ></div>
 
                           {t.teamLogo ? (
-                            <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center p-1 border border-white/10 shrink-0">
+                            <div className="w-8 h-8 rounded-full bg-[#0a0702] flex items-center justify-center p-1 border border-[#D4AF37]/20 shrink-0">
                               <img
                                 src={t.teamLogo}
                                 alt={t.teamName}
@@ -788,33 +831,46 @@ const Lobby = () => {
                               />
                             </div>
                           ) : (
-                            <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center shrink-0 border border-white/10">
-                              <span className="text-[10px] font-black text-white">
+                            <div className="w-8 h-8 rounded-full bg-[#0a0702] flex items-center justify-center shrink-0 border border-[#D4AF37]/20">
+                              <span className="text-[10px] font-black text-[#FFE58F]">
                                 {t.teamName.charAt(0)}
                               </span>
                             </div>
                           )}
 
                           <div className="flex-1 overflow-hidden pr-4">
-                            <div className="text-[9px] font-black text-white uppercase truncate">
+                            <div className="text-[9px] font-black text-[#FFE58F] uppercase truncate">
                               {t.teamName}
                             </div>
-                            <div className="text-[10px] text-slate-500 font-bold truncate flex items-center gap-1.5">
+                            <div className="text-[10px] text-[#D4AF37]/80 font-bold truncate flex items-center gap-1.5">
                               {/* Online status dot */}
                               <span
                                 className={`w-1.5 h-1.5 rounded-full shrink-0 ${onlineMap[t.ownerUserId] === false
-                                  ? "bg-red-500"
-                                  : "bg-green-500"
+                                  ? "bg-[#FF4C4C]"
+                                  : "bg-[#FFE58F]"
                                   }`}
                                 title={onlineMap[t.ownerUserId] === false ? "Offline" : "Online"}
                               />
                               {t.ownerName}{" "}
-                              {(t.ownerUserId && roomState.hostUserId && t.ownerUserId === roomState.hostUserId) || t.ownerSocketId === roomState.host ? "(Host)" : ""}
+                              {t.ownerUserId === roomState?.hostUserId ? "(Host)" : coHostUserIds.includes(t.ownerUserId) ? "(Co-Host)" : ""}
                             </div>
                           </div>
 
-                          {isHost &&
-                            t.ownerSocketId !== socket.id && (
+                          <div className="flex items-center gap-2 pr-2">
+                            {isPrimaryHost && t.ownerUserId !== userId && (
+                              <button
+                                onClick={() => handleToggleCoHost(t.ownerUserId)}
+                                className={`px-2 py-1 rounded-md text-[8px] font-black uppercase tracking-widest border transition-all ${coHostUserIds.includes(t.ownerUserId)
+                                  ? "bg-[#FFE58F] text-[#1a1205] border-[#FFE58F]"
+                                  : "bg-transparent text-[#D4AF37]/60 border-[#D4AF37]/20 hover:bg-[#D4AF37]/10"
+                                  }`}
+                                title={coHostUserIds.includes(t.ownerUserId) ? "Remove Co-Host" : "Make Co-Host"}
+                              >
+                                {coHostUserIds.includes(t.ownerUserId) ? "Co-Host" : "+ Co-Host"}
+                              </button>
+                            )}
+
+                            {isModerator && t.ownerSocketId !== socket.id && (
                               <button
                                 onClick={() =>
                                   setKickTarget({
@@ -822,24 +878,16 @@ const Lobby = () => {
                                     name: t.ownerName,
                                   })
                                 }
-                                className="absolute top-2 right-2 text-slate-500 hover:text-red-500 bg-black/20 hover:bg-red-500/10 w-6 h-6 rounded-full flex items-center justify-center transition-all"
+                                className="text-[#D4AF37]/60 hover:text-[#FF4C4C] bg-[#0a0702]/50 hover:bg-[#FF4C4C]/20 w-6 h-6 rounded-full flex items-center justify-center transition-all"
                                 title="Kick Player"
                               >
-                                <svg
-                                  width="10"
-                                  height="10"
-                                  viewBox="0 0 24 24"
-                                  fill="none"
-                                  stroke="currentColor"
-                                  strokeWidth="3"
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                >
+                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
                                   <line x1="18" y1="6" x2="6" y2="18"></line>
                                   <line x1="6" y1="6" x2="18" y2="18"></line>
                                 </svg>
                               </button>
                             )}
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -848,27 +896,27 @@ const Lobby = () => {
                     {isHost &&
                       joinRequests.length > 0 && (
                         <div className="mt-8 space-y-4">
-                          <h3 className="text-[10px] font-black text-yellow-500 uppercase tracking-widest ml-1 animate-pulse flex items-center gap-2">
-                            <div className="w-2 h-2 rounded-full bg-yellow-500 blur-[2px]"></div>
+                          <h3 className="text-[10px] font-black text-[#D4AF37] uppercase tracking-widest ml-1 animate-pulse flex items-center gap-2">
+                            <div className="w-2 h-2 rounded-full bg-[#FFE58F] blur-[2px]"></div>
                             Pending Join Requests ({joinRequests.length})
                           </h3>
                           <div className="space-y-2">
                             {joinRequests.map((req) => (
                               <div
                                 key={req.socketId}
-                                className="p-3 md:p-4 rounded-2xl bg-yellow-500/5 border border-yellow-500/20 flex flex-col md:flex-row md:items-center justify-between gap-3"
+                                className="p-3 md:p-4 rounded-2xl bg-[#D4AF37]/5 border border-[#D4AF37]/20 flex flex-col md:flex-row md:items-center justify-between gap-3"
                               >
                                 <div className="flex items-center gap-3">
-                                  <div className="w-8 h-8 rounded-full bg-yellow-500/20 flex items-center justify-center border border-yellow-500/30">
-                                    <span className="text-xs font-black text-yellow-500">
+                                  <div className="w-8 h-8 rounded-full bg-[#D4AF37]/20 flex items-center justify-center border border-[#D4AF37]/30">
+                                    <span className="text-xs font-black text-[#FFE58F]">
                                       {req.name?.charAt(0)}
                                     </span>
                                   </div>
                                   <div>
-                                    <div className="text-sm font-bold text-yellow-100">
+                                    <div className="text-sm font-bold text-[#FFE58F]">
                                       {req.name}
                                     </div>
-                                    <div className="text-[9px] text-yellow-600 uppercase tracking-widest font-black">
+                                    <div className="text-[9px] text-[#D4AF37] uppercase tracking-widest font-black">
                                       wants to join
                                     </div>
                                   </div>
@@ -881,7 +929,7 @@ const Lobby = () => {
                                         targetSocketId: req.socketId,
                                       })
                                     }
-                                    className="flex-1 md:flex-none px-4 py-2 bg-green-500/10 text-green-500 hover:bg-green-500 hover:text-white border border-green-500/20 hover:border-green-500 rounded-xl transition-all shadow-[0_0_10px_rgba(34,197,94,0.1)] hover:shadow-[0_0_15px_rgba(34,197,94,0.4)]"
+                                    className="flex-1 md:flex-none px-4 py-2 bg-[#FFE58F]/10 text-[#FFE58F] hover:bg-[#FFE58F] hover:text-[#1a1205] border border-[#FFE58F]/20 hover:border-[#FFE58F] rounded-xl transition-all shadow-[0_0_10px_rgba(255,229,143,0.1)] hover:shadow-[0_0_15px_rgba(255,229,143,0.4)]"
                                   >
                                     Approve
                                   </button>
@@ -892,7 +940,7 @@ const Lobby = () => {
                                         targetSocketId: req.socketId,
                                       })
                                     }
-                                    className="flex-1 md:flex-none px-4 py-2 bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white border border-red-500/20 hover:border-red-500 rounded-xl transition-all"
+                                    className="flex-1 md:flex-none px-4 py-2 bg-[#FF4C4C]/10 text-[#FF4C4C] hover:bg-[#FF4C4C] hover:text-[#1a1205] border border-[#FF4C4C]/20 hover:border-[#FF4C4C] rounded-xl transition-all"
                                   >
                                     Reject
                                   </button>
@@ -907,7 +955,7 @@ const Lobby = () => {
                     {spectators.length > 0 && (
                       <div className="mt-8 space-y-4">
                         <div className="flex items-center justify-between ml-1">
-                          <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                          <h3 className="text-[10px] font-black text-[#D4AF37]/60 uppercase tracking-widest">
                             Spectators ({spectators.length})
                           </h3>
                         </div>
@@ -915,27 +963,27 @@ const Lobby = () => {
                           {spectators.map((s) => (
                             <div
                               key={s.socketId}
-                              className="flex items-center gap-4 p-3 rounded-2xl bg-white/5 border border-white/10 relative group hover:bg-white/10 transition-colors"
+                              className="flex items-center gap-4 p-3 rounded-2xl bg-[#0a0702] border border-[#D4AF37]/20 relative group hover:bg-[#D4AF37]/5 transition-colors"
                             >
                               {/* Avatar with status dot */}
                               <div className="relative w-8 h-8 shrink-0">
-                                <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center border border-slate-600">
-                                  <span className="text-[10px] font-black text-slate-400">
+                                <div className="w-8 h-8 rounded-full bg-[#1a1205] flex items-center justify-center border border-[#D4AF37]/30">
+                                  <span className="text-[10px] font-black text-[#FFE58F]">
                                     {s.name?.charAt(0) || "?"}
                                   </span>
                                 </div>
                                 <span
-                                  className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-slate-900 ${onlineMap[s.socketId] === false
-                                    ? "bg-red-500 shadow-[0_0_6px_#ef4444]"
-                                    : "bg-green-500 shadow-[0_0_6px_#22c55e]"
+                                  className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-[#0a0702] ${onlineMap[s.socketId] === false
+                                    ? "bg-[#FF4C4C] shadow-[0_0_6px_#FF4C4C]"
+                                    : "bg-[#FFE58F] shadow-[0_0_6px_#FFE58F]"
                                     }`}
                                   title={onlineMap[s.socketId] === false ? "Offline" : "Online"}
                                 />
                               </div>
-                              <div className="text-sm font-bold text-slate-300">
+                              <div className="text-sm font-bold text-[#FFE58F]">
                                 {s.name}
                                 {s.socketId === socket.id && (
-                                  <span className="ml-2 text-[10px] font-black text-blue-400 uppercase tracking-widest bg-blue-500/10 px-2 py-0.5 rounded-full border border-blue-500/20">
+                                  <span className="ml-2 text-[10px] font-black text-[#1a1205] uppercase tracking-widest bg-[#D4AF37] px-2 py-0.5 rounded-full border border-[#FFE58F]">
                                     You
                                   </span>
                                 )}
@@ -946,45 +994,16 @@ const Lobby = () => {
                       </div>
                     )}
 
-                    {isHost && (
-                      <div className="mt-8 space-y-4">
-                        <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">
-                          Auction Timer Settings
-                        </h3>
-                        <div className="flex gap-4">
-                          {[5, 10].map((sec) => (
-                            <button
-                              key={sec}
-                              onClick={() =>
-                                socket.emit("update_settings", {
-                                  roomCode: roomState.roomCode,
-                                  timerDuration: sec,
-                                })
-                              }
-                              className={`flex-1 py-3 rounded-xl border font-black uppercase tracking-widest text-[10px] transition-all
-                                                                ${timerDuration ===
-                                  sec
-                                  ? "bg-blue-600 border-blue-400 text-white shadow-lg shadow-blue-900/40"
-                                  : "bg-white/5 border-white/5 text-slate-500 hover:border-white/20"
-                                }`}
-                            >
-                              {sec} Seconds
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {isHost ? (
+                    {isModerator ? (
                       <button
                         onClick={handleStart}
-                        className="w-full btn-premium bg-white shadow-[0_0_50px_rgba(255,255,255,0.2)] mt-6"
+                        className="w-full btn-premium py-4 bg-[#FFE58F] text-[#1a1205] border-none shadow-[0_0_50px_rgba(255,229,143,0.3)] hover:bg-white transition-all mt-6 font-black uppercase tracking-widest text-[10px]"
                       >
                         Initiate Auction Loop
                       </button>
                     ) : (
-                      <div className="w-full p-6 rounded-2xl bg-white/5 border border-white/10 text-center mt-4">
-                        <div className="text-white/30 text-[10px] font-black uppercase tracking-[0.2em] animate-pulse">
+                      <div className="w-full p-6 rounded-2xl bg-[#0a0702]/80 border border-[#D4AF37]/20 text-center mt-4 shadow-inner">
+                        <div className="text-[#D4AF37]/50 text-[10px] font-black uppercase tracking-[0.2em] animate-pulse">
                           Waiting for host to start...
                         </div>
                       </div>
@@ -1002,23 +1021,23 @@ const Lobby = () => {
         {/* Kick Confirmation Modal */}
         {kickTarget && (
           <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-            <div className="glass-card max-w-sm w-full p-8 rounded-3xl border border-white/10 shadow-2xl relative overflow-hidden">
-              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-red-500 to-orange-500"></div>
+            <div className="glass-card max-w-sm w-full p-8 rounded-3xl border border-[#D4AF37]/20 shadow-2xl relative overflow-hidden bg-[#0a0702]/90">
+              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-[#FFE58F] to-[#D4AF37]"></div>
 
               <div className="flex flex-col items-center text-center space-y-6">
-                <div className="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center mb-2">
-                  <svg className="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="w-16 h-16 rounded-full bg-[#FF4C4C]/10 flex items-center justify-center mb-2">
+                  <svg className="w-8 h-8 text-[#FF4C4C]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 7a4 4 0 11-8 0 4 4 0 018 0zM9 14a6 6 0 00-6 6v1h12v-1a6 6 0 00-6-6zM21 12h-6" />
                   </svg>
                 </div>
 
                 <div>
-                  <h3 className="text-xl font-black text-white uppercase tracking-wider mb-2">
+                  <h3 className="text-xl font-black text-[#FFE58F] uppercase tracking-wider mb-2">
                     Kick Player?
                   </h3>
-                  <p className="text-slate-400 text-sm font-medium">
+                  <p className="text-[#D4AF37]/70 text-sm font-medium">
                     Are you sure you want to kick{" "}
-                    <span className="text-white font-black">{kickTarget.name}</span>{" "}
+                    <span className="text-[#FFE58F] font-black">{kickTarget.name}</span>{" "}
                     from the waiting room?
                   </p>
                 </div>
@@ -1026,10 +1045,10 @@ const Lobby = () => {
                 <div className="flex w-full gap-4 text-[10px] font-black uppercase tracking-widest">
                   <button
                     onClick={() => setKickTarget(null)}
-                    className="flex-1 py-4 flex flex-col items-center justify-center gap-2 rounded-2xl bg-white/5 border border-white/10 text-slate-300 hover:bg-white/10 hover:text-white transition-all group"
+                    className="flex-1 py-4 flex flex-col items-center justify-center gap-2 rounded-2xl bg-[#D4AF37]/5 border border-[#D4AF37]/20 text-[#D4AF37]/60 hover:bg-[#D4AF37]/10 hover:text-[#FFE58F] transition-all group"
                   >
-                    <div className="w-10 h-10 rounded-full bg-red-500/20 group-hover:bg-red-500 flex items-center justify-center transition-colors">
-                      <svg className="w-5 h-5 text-red-500 group-hover:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div className="w-10 h-10 rounded-full bg-[#FF4C4C]/20 group-hover:bg-[#FF4C4C] flex items-center justify-center transition-colors">
+                      <svg className="w-5 h-5 text-[#FF4C4C] group-hover:text-[#1a1205]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" />
                       </svg>
                     </div>
@@ -1044,10 +1063,10 @@ const Lobby = () => {
                       });
                       setKickTarget(null);
                     }}
-                    className="flex-1 py-4 flex flex-col items-center justify-center gap-2 rounded-2xl bg-white/5 border border-white/10 text-slate-300 hover:bg-white/10 hover:text-white transition-all group"
+                    className="flex-1 py-4 flex flex-col items-center justify-center gap-2 rounded-2xl bg-[#D4AF37]/5 border border-[#D4AF37]/20 text-[#D4AF37]/60 hover:bg-[#D4AF37]/10 hover:text-[#FFE58F] transition-all group"
                   >
-                    <div className="w-10 h-10 rounded-full bg-green-500/20 group-hover:bg-green-500 flex items-center justify-center transition-colors">
-                      <svg className="w-5 h-5 text-green-500 group-hover:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div className="w-10 h-10 rounded-full bg-[#FFE58F]/20 group-hover:bg-[#FFE58F] flex items-center justify-center transition-colors">
+                      <svg className="w-5 h-5 text-[#FFE58F] group-hover:text-[#1a1205]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" />
                       </svg>
                     </div>
@@ -1067,18 +1086,13 @@ const Lobby = () => {
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
           >
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0, y: 20 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="glass-card max-w-sm w-full p-8 rounded-3xl border border-white/10 shadow-2xl relative overflow-hidden"
-            >
-              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-red-500 to-orange-500"></div>
+            <div className="glass-card max-w-sm w-full p-8 rounded-3xl border border-[#D4AF37]/20 shadow-2xl relative overflow-hidden bg-[#0a0702]/90">
+              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-[#FFE58F] to-[#D4AF37]"></div>
 
               <div className="flex flex-col items-center text-center space-y-6">
-                <div className="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center mb-2">
+                <div className="w-16 h-16 rounded-full bg-[#FF4C4C]/10 flex items-center justify-center mb-2">
                   <svg
-                    className="w-8 h-8 text-red-500"
+                    className="w-8 h-8 text-[#FF4C4C]"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -1093,10 +1107,10 @@ const Lobby = () => {
                 </div>
 
                 <div>
-                  <h3 className="text-xl font-black text-white uppercase tracking-wider mb-2">
+                  <h3 className="text-xl font-black text-[#FFE58F] uppercase tracking-wider mb-2">
                     Leave Waiting Room?
                   </h3>
-                  <p className="text-slate-400 text-sm font-medium">
+                  <p className="text-[#D4AF37]/70 text-sm font-medium">
                     Are you sure you want to{" "}
                     {isHost &&
                       roomState?.status === "Lobby"
@@ -1109,11 +1123,11 @@ const Lobby = () => {
                 <div className="flex w-full gap-4 mt-4 text-[10px] font-black uppercase tracking-widest">
                   <button
                     onClick={() => setShowLeaveConfirm(false)}
-                    className="flex-1 py-4 flex flex-col items-center justify-center gap-2 rounded-2xl bg-white/5 border border-white/10 text-slate-300 hover:bg-white/10 hover:text-white transition-all group"
+                    className="flex-1 py-4 flex flex-col items-center justify-center gap-2 rounded-2xl bg-[#D4AF37]/5 border border-[#D4AF37]/20 text-[#D4AF37]/60 hover:bg-[#D4AF37]/10 hover:text-[#FFE58F] transition-all group"
                   >
-                    <div className="w-10 h-10 rounded-full bg-red-500/20 group-hover:bg-red-500 flex items-center justify-center transition-colors">
+                    <div className="w-10 h-10 rounded-full bg-[#FF4C4C]/20 group-hover:bg-[#FF4C4C] flex items-center justify-center transition-colors">
                       <svg
-                        className="w-5 h-5 text-red-500 group-hover:text-white"
+                        className="w-5 h-5 text-[#FF4C4C] group-hover:text-[#1a1205]"
                         fill="none"
                         stroke="currentColor"
                         viewBox="0 0 24 24"
@@ -1131,11 +1145,11 @@ const Lobby = () => {
 
                   <button
                     onClick={confirmLeaveRoom}
-                    className="flex-1 py-4 flex flex-col items-center justify-center gap-2 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500 hover:text-white transition-all group shadow-[0_0_15px_rgba(239,68,68,0.1)]"
+                    className="flex-1 py-4 flex flex-col items-center justify-center gap-2 rounded-2xl bg-[#FF4C4C]/10 border border-[#FF4C4C]/20 text-[#FF4C4C] hover:bg-[#FF4C4C] hover:text-[#1a1205] transition-all group shadow-[0_0_15px_rgba(255,76,76,0.1)]"
                   >
-                    <div className="w-10 h-10 rounded-full bg-green-500/20 group-hover:bg-green-500 flex items-center justify-center transition-colors">
+                    <div className="w-10 h-10 rounded-full bg-[#FFE58F]/20 group-hover:bg-[#FFE58F] flex items-center justify-center transition-colors">
                       <svg
-                        className="w-5 h-5 text-green-500 group-hover:text-white"
+                        className="w-5 h-5 text-[#FFE58F] group-hover:text-[#1a1205]"
                         fill="none"
                         stroke="currentColor"
                         viewBox="0 0 24 24"
@@ -1152,7 +1166,7 @@ const Lobby = () => {
                   </button>
                 </div>
               </div>
-            </motion.div>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>

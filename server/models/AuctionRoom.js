@@ -5,6 +5,7 @@ const auctionRoomSchema = new mongoose.Schema({
     type: { type: String, enum: ["public", "private"], default: "private" }, // Formal Room Type
     hostSocketId: { type: String }, // For legacy engine reference
     hostUserId: { type: String },   // Permanent secure host identifier
+    coHostUserIds: [{ type: String }], // Up to 3 co-hosts
     status: { type: String, enum: ["Lobby", "Auctioning", "Selection", "Finished"], default: "Lobby" },
     purseLimit: { type: Number, default: 12000 },
 
@@ -45,5 +46,9 @@ const auctionRoomSchema = new mongoose.Schema({
     highestBidderTeamId: { type: mongoose.Schema.Types.ObjectId, ref: 'Franchise', default: null },
 
 }, { timestamps: true });
+
+// Compound index: roomId is already unique-indexed, add status for fast active-room queries
+auctionRoomSchema.index({ status: 1 });
+auctionRoomSchema.index({ hostUserId: 1 });
 
 module.exports = mongoose.model('AuctionRoom', auctionRoomSchema);

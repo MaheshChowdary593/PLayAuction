@@ -3,6 +3,8 @@ import { useLocation, useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toPng } from 'html-to-image';
 import TeamShareCard from '../components/TeamShareCard';
+import GlobalResultCard from '../components/GlobalResultCard';
+import { fmtCr } from '../utils/playerUtils';
 
 const ResultsReveal = () => {
     const { roomCode } = useParams();
@@ -12,7 +14,7 @@ const ResultsReveal = () => {
     const [selectedTeam, setSelectedTeam] = useState(null);
     const [error, setError] = useState(null);
     const [allPlayersMap, setAllPlayersMap] = useState({});
-    const [isSharing, setIsSharing] = useState(false);
+    const [isSharing, setIsSharing] = useState(false); // Global locking state for any sharing
     const [toast, setToast] = useState(null);
     const shareRef = useRef(null);
 
@@ -119,7 +121,58 @@ const ResultsReveal = () => {
                 type: 'error'
             });
         } finally {
-            setIsSharing(false);
+            // Add a 1.2s cooldown before allowing the next share to let the OS UI settle
+            setTimeout(() => setIsSharing(false), 1200);
+        }
+    };
+
+    const handleShareGlobalCard = async () => {
+        if (!results || results.length === 0 || isSharing) return;
+        setIsSharing(true);
+
+        try {
+            await new Promise(resolve => setTimeout(resolve, 800));
+
+            const node = document.getElementById('global-result-card');
+            if (!node) throw new Error("Global share card element not found");
+
+            const dataUrl = await toPng(node, {
+                cacheBust: true,
+                pixelRatio: 2,
+                backgroundColor: '#1a1205',
+            });
+
+            const fileName = `IPL_Auction_Final_Verdict.png`;
+            const blobResponse = await fetch(dataUrl);
+            const blob = await blobResponse.blob();
+            const file = new File([blob], fileName, { type: 'image/png' });
+
+            const shareData = {
+                title: `IPL Auction 2026 - Final Verdicts`,
+                text: `The Auction is Over! Here are the Final Squad Verdicts and AI Ratings. #IPLAuction #VercelVerdict`,
+                files: [file]
+            };
+
+            if (navigator.canShare && navigator.canShare(shareData)) {
+                await navigator.share(shareData);
+            } else {
+                const link = document.createElement('a');
+                link.href = dataUrl;
+                link.download = fileName;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+
+                setToast({ message: "Global Verdict downloaded! You can now share it.", type: 'success' });
+            }
+        } catch (err) {
+            console.error("Global sharing failed:", err);
+            // Ignore AbortError (user cancelled)
+            if (err.name !== 'AbortError') {
+                setToast({ message: `Sharing failed: ${err.message}`, type: 'error' });
+            }
+        } finally {
+            setTimeout(() => setIsSharing(false), 1200);
         }
     };
 
@@ -151,7 +204,7 @@ const ResultsReveal = () => {
             <div
                 style={{
                     position: 'fixed',
-                    left: '-2000px',
+                    left: '-3000px',
                     top: '0',
                     zIndex: -1,
                     visibility: 'visible',
@@ -159,6 +212,7 @@ const ResultsReveal = () => {
                 }}
             >
                 <TeamShareCard team={selectedTeam} allPlayersMap={allPlayersMap} />
+                <GlobalResultCard results={results} allPlayersMap={allPlayersMap} />
             </div>
 
             {/* Background elements */}
@@ -175,12 +229,21 @@ const ResultsReveal = () => {
                             The <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400">Verdict</span>
                         </h2>
                     </div>
-                    <button
-                        onClick={() => navigate('/')}
-                        className="w-full sm:w-auto px-6 py-4 glass-panel rounded-2xl border-white/10 hover:bg-white/10 transition-colors text-[10px] font-black uppercase tracking-widest shadow-lg"
-                    >
-                        Back to Lobby
-                    </button>
+                    <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
+                        <button
+                            onClick={handleShareGlobalCard}
+                            disabled={isSharing}
+                            className={`px-6 py-4 bg-[#D4AF37] text-[#1a1205] rounded-2xl font-black uppercase tracking-widest shadow-lg hover:bg-[#FFE58F] transition-all flex items-center justify-center gap-2 ${isSharing ? 'opacity-50' : ''}`}
+                        >
+                            {isSharing ? <span className="animate-spin h-3 w-3 border-2 border-[#1a1205]/30 border-t-[#1a1205] rounded-full"></span> : '🏆'} Global Verdict
+                        </button>
+                        <button
+                            onClick={() => navigate('/')}
+                            className="px-6 py-4 glass-panel rounded-2xl border-white/10 hover:bg-white/10 transition-colors text-[10px] font-black uppercase tracking-widest shadow-lg"
+                        >
+                            Back to Lobby
+                        </button>
+                    </div>
                 </header>
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -384,7 +447,7 @@ const ResultsReveal = () => {
                                                             {entry.name || (entry.player && allPlayersMap[entry.player]) || (entry.player?.name) || (allPlayersMap[entry.player?._id]) || "Unknown Player"}
                                                         </div>
                                                     </div>
-                                                    <div className="text-xs font-mono font-black text-slate-400">₹{entry.boughtFor}L</div>
+                                                    <div className="text-xs font-mono font-black text-slate-400">{fmtCr(entry.boughtFor)}</div>
                                                 </div>
                                             ))}
                                         </div>

@@ -23,24 +23,39 @@ async function fetchAllPlayers() {
         }
 
         const collections = [
-            'marquee',
-            'pool1_batsmen', 'pool1_bowlers',
-            'pool2_batsmen', 'pool2_bowlers',
-            'pool3', 'pool4'
+            'marquee_batsmen',
+            'marquee_bowlers',
+            'marquee_Allrounder',
+            'marquee_wk',
+            'pool1_batsmen',
+            'pool1_bowlers',
+            'pool1_Allrounder',
+            'pool1_wk',
+            'Emerging_players',
+            'pool2_batsmen',
+            'pool2_bowlers',
+            'pool2_allrounder',
+            'pool3_batsmen',
+            'pool4_batsmen',
+            'pool4_allrounder',
+            'pool4_wk'
         ];
 
         let allPlayers = [];
         for (const collName of collections) {
-            const docs = await mongoose.connection.db.collection(collName).find({}).toArray();
+            const db = mongoose.connection.client.db('ipl_data');
+            const docs = await db.collection(collName).find({}).toArray();
 
             const mapped = docs.map(doc => {
                 // Determine base price based on collection
                 let basePrice = 50;
-                if (collName === 'marquee') basePrice = 200;
-                else if (collName.includes('pool1')) basePrice = 100;
-                else if (collName.includes('pool2')) basePrice = 75;
-                else if (collName === 'pool3') basePrice = 50;
-                else if (collName === 'pool4') basePrice = 20;
+                const lowerColl = collName.toLowerCase();
+                if (lowerColl.startsWith('marquee')) basePrice = 200; // 2cr
+                else if (lowerColl.includes('pool1')) basePrice = 150; // 1.5cr
+                else if (lowerColl.includes('emerging')) basePrice = 30; // 30L
+                else if (lowerColl.includes('pool2')) basePrice = 100; // 1cr
+                else if (lowerColl.includes('pool3')) basePrice = 75; // 75L
+                else if (lowerColl.includes('pool4')) basePrice = 50; // 50L
 
                 return {
                     _id: doc._id,

@@ -92,7 +92,7 @@ export const SessionProvider = ({ children }) => {
 
         const data = await response.json();
         localStorage.setItem(SESSION_KEY, data.token);
-        localStorage.setItem('playerName', data.playerName);
+        // Do NOT store plain playerName in localStorage to avoid bleed in multi-tab testing
         setToken(data.token);
         setUserId(data.userId);
         setPlayerName(data.playerName);
@@ -104,7 +104,6 @@ export const SessionProvider = ({ children }) => {
      */
     const clearSession = useCallback(() => {
         localStorage.removeItem(SESSION_KEY);
-        localStorage.removeItem('playerName');
         setToken(null);
         setUserId(null);
         setPlayerName('');

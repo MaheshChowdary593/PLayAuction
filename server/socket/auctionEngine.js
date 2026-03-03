@@ -5,18 +5,28 @@ const Franchise = require('../models/Franchise');
 const AuctionTransaction = require('../models/AuctionTransaction');
 const mongoose = require('mongoose');
 const jwt = require('jsonwebtoken');
+const { markDirty, flushRoom } = require('../services/dbWriter');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'ipl_auction_fallback_secret';
 
 async function fetchAllPlayers() {
     const collections = [
-        'marquee',
+        'marquee_batsmen',
+        'marquee_bowlers',
+        'marquee_Allrounder',
+        'marquee_wk',
         'pool1_batsmen',
         'pool1_bowlers',
+        'pool1_Allrounder',
+        'pool1_wk',
+        'Emerging_players',
         'pool2_batsmen',
         'pool2_bowlers',
-        'pool3',
-        'pool4'
+        'pool2_allrounder',
+        'pool3_batsmen',
+        'pool4_batsmen',
+        'pool4_allrounder',
+        'pool4_wk'
     ];
 
     try {
@@ -25,7 +35,9 @@ async function fetchAllPlayers() {
         // Fetch all collections in parallel for speed
         const poolResults = await Promise.all(
             collections.map(async (collName) => {
-                const players = await mongoose.connection.db.collection(collName).find({}).toArray();
+                // All new auction pools live in the 'ipl_data' database
+                const db = mongoose.connection.client.db('ipl_data');
+                const players = await db.collection(collName).find({}).toArray();
 
                 // Shuffle players within this specific collection (Fisher-Yates)
                 for (let i = players.length - 1; i > 0; i--) {
@@ -35,25 +47,60 @@ async function fetchAllPlayers() {
 
                 // Determine basePrice (in lakhs)
                 let bp = 50;
-                if (['marquee', 'pool1_batsmen', 'pool1_bowlers'].includes(collName)) bp = 200;
-                else if (['pool2_batsmen', 'pool2_bowlers'].includes(collName)) bp = 150;
-                else if (collName === 'pool3') bp = 100;
-                else if (collName === 'pool4') bp = 50;
+                const lowerColl = collName.toLowerCase();
+                if (lowerColl.startsWith('marquee')) bp = 200; // 2cr
+                else if (lowerColl.includes('pool1')) bp = 150; // 1.5cr
+                else if (lowerColl.includes('emerging')) bp = 30; // 30L
+                else if (lowerColl.includes('pool2')) bp = 100; // 1cr
+                else if (lowerColl.includes('pool3')) bp = 75; // 75L
+                else if (lowerColl.includes('pool4')) bp = 50; // 50L
 
-                // Format and map snake_case MongoDB stats to camelCase UI fields
+                // Format and map MongoDB stats to camelCase UI fields
                 return players.map(p => {
-                    const nationality = p.nationality || "";
+                    // ---- emerging_players has a unique field schema ----
+                    if (collName === 'emerging_players') {
+                        const country = (p.Country || '').toLowerCase().trim();
+                        const isOverseas = country !== '' && country !== 'india' && country !== 'ind';
+                        return {
+                            ...p,
+                            name: p.Player || p.name || 'Unknown Player',
+                            role: p.Role || p.role || 'Batsman',
+                            nationality: p.Country || p.nationality || '',
+                            isOverseas,
+                            poolName: 'EMERGING PLAYERS',
+                            poolID: collName,
+                            basePrice: bp,
+                            imagepath: p['Image URL'] || p.imagepath || p.image_path || '',
+                            image: p['Image URL'] || p.image_path || p.image || '/default-player.png',
+                            stats: {
+                                battingAvg: parseFloat(p['Batting Avg']) || p.battingAvg || 0,
+                                strikeRate: parseFloat(p['Strike Rate']) || p.strikeRate || 0,
+                                highestScore: parseFloat(p['Highest Runs']) || p.highestScore || 0,
+                                bowlingAvg: parseFloat(p['Bowling Avg']) || p.bowlingAvg || 0,
+                                economy: parseFloat(p['Economy']) || p.economy || 0,
+                                bestFigures: p['Best Figures'] || p.bestFigures || '0/0',
+                                matches: p.Matches || p.matches || 0,
+                                runs: p.Runs || p.runs || 0,
+                                wickets: p.Wickets || p.wickets || 0,
+                                catches: p.catches || 0,
+                                stumpings: p.stumpings || 0
+                            }
+                        };
+                    }
+
+                    // ---- Standard schema for all other pools ----
+                    const nationality = p.nationality || '';
                     const isOverseas = p.isOverseas !== undefined ? p.isOverseas :
-                        (nationality && !["india", "ind"].includes(nationality.toLowerCase().trim()));
+                        (nationality && !['india', 'ind'].includes(nationality.toLowerCase().trim()));
 
                     return {
                         ...p,
-                        name: p.name || p.player || "Unknown Player",
+                        name: p.name || p.player || 'Unknown Player',
                         isOverseas,
                         poolName: collName.replace(/_/g, ' ').toUpperCase(),
                         poolID: collName,
                         basePrice: bp,
-                        image: p.image_path || p.image || "/default-player.png",
+                        image: p.image_path || p.image || '/default-player.png',
                         // Nest stats for UI compatibility
                         stats: {
                             battingAvg: p.batting_avg || p.battingAvg || 0,
@@ -61,7 +108,7 @@ async function fetchAllPlayers() {
                             highestScore: p.highest_score || p.highestScore || 0,
                             bowlingAvg: p.bowling_avg || p.bowlingAvg || 0,
                             economy: p.bowling_economy || p.economy || 0,
-                            bestFigures: p.best_bowling_figures || p.bestFigures || "0/0",
+                            bestFigures: p.best_bowling_figures || p.bestFigures || '0/0',
                             matches: p.matches || 0,
                             runs: p.runs || 0,
                             wickets: p.wickets || 0,
@@ -72,6 +119,7 @@ async function fetchAllPlayers() {
                 });
             })
         );
+
 
         console.timeEnd("[DATA] Multi-fetch duration");
 
@@ -90,8 +138,12 @@ async function fetchAllPlayers() {
  * pool3, and pool4 — NOT in a single Mongoose model collection.
  */
 const PLAYER_COLLECTIONS = [
-    'marquee', 'pool1_batsmen', 'pool1_bowlers',
-    'pool2_batsmen', 'pool2_bowlers', 'pool3', 'pool4'
+    'marquee_batsmen', 'marquee_bowlers', 'marquee_Allrounder', 'marquee_wk',
+    'pool1_batsmen', 'pool1_bowlers', 'pool1_Allrounder', 'pool1_wk',
+    'Emerging_players',
+    'pool2_batsmen', 'pool2_bowlers', 'pool2_allrounder',
+    'pool3_batsmen',
+    'pool4_batsmen', 'pool4_allrounder', 'pool4_wk'
 ];
 
 async function findPlayerById(playerId) {
@@ -101,11 +153,14 @@ async function findPlayerById(playerId) {
     try { oid = new ObjectId(String(playerId)); } catch { return null; }
 
     for (const collName of PLAYER_COLLECTIONS) {
-        const doc = await mongoose.connection.db.collection(collName).findOne({ _id: oid });
+        // All new auction pools live in the 'ipl_data' database
+        const db = mongoose.connection.client.db('ipl_data');
+        const doc = await db.collection(collName).findOne({ _id: oid });
         if (doc) return doc;
     }
     return null;
 }
+
 
 
 const IPL_TEAMS = [
@@ -129,6 +184,13 @@ const IPL_TEAMS = [
 // In-memory state for timers to avoid DB writes for every second
 const roomTimers = {};
 const roomStates = {}; // Keep active room state in memory for fast access, flush to DB periodically / at end
+
+function isModerator(state, socketId, userId) {
+    if (!state) return false;
+    const isPrimary = (userId && state.hostUserId === userId) || state.host === socketId;
+    const isCoHost = userId && state.coHostUserIds && state.coHostUserIds.includes(userId);
+    return isPrimary || isCoHost;
+}
 
 function generateRoomCode() {
     return Math.floor(100000 + Math.random() * 900000).toString();
@@ -172,6 +234,7 @@ async function rehydrateRoomState(roomCode) {
             spectators: [],
             joinRequests: [],
             availableTeams: roomDoc.availableTeams || [],
+            coHostUserIds: roomDoc.coHostUserIds || [],
             currentBid: {
                 amount: roomDoc.currentBidAmount || 0,
                 teamId: roomDoc.highestBidderTeamId,
@@ -308,6 +371,7 @@ const setupSocketHandlers = (io) => {
                     spectators: [],
                     joinRequests: [],
                     availableTeams: normalizedFranchises,
+                    coHostUserIds: [], // Up to 3
                     currentBid: { amount: 0, teamId: null, teamName: null },
                     timer: 0,
                     timerDuration: 10,
@@ -350,15 +414,33 @@ const setupSocketHandlers = (io) => {
                     ? state.teams.find(t => t.ownerUserId === userId)
                     : state.teams.find(t => t.ownerName === playerName);
 
+                // RELAXED JOINING FOR RE-ENTRY:
+                // If the user already owned a team, always allow them back in.
+                // This fixes the "blocked after refresh/disconnect" bug.
                 const isApproved = (userId && state.approvedUserIds?.includes(userId)) || state.approvedSpectators?.includes(socket.id);
                 if (state.status !== 'Lobby' && !existingTeam && !asSpectator && !isApproved) {
-                    return socket.emit('error', 'Auction already started. New players cannot join.');
+                    return socket.emit('error', 'Auction already started. Only original participants can re-join.');
                 }
 
                 // Check if room is already completely full
                 const totalPlayers = state.teams.length + (state.spectators?.length || 0);
                 if (!existingTeam && totalPlayers >= 30) {
                     return socket.emit('error', 'Room is currently full (Max 30 participants)');
+                }
+
+                // Duplicate name check: for new joiners only (not returning owners)
+                // Compare case-insensitively to avoid "Venkat" vs "venkat" confusion.
+                if (!existingTeam && playerName) {
+                    const nameLower = playerName.toLowerCase().trim();
+                    const takenByTeam = state.teams.some(t => t.ownerName?.toLowerCase().trim() === nameLower);
+                    const takenBySpectator = state.spectators?.some(s => s.name?.toLowerCase().trim() === nameLower);
+                    const takenByHost = state.hostName?.toLowerCase().trim() === nameLower;
+
+                    if (takenByTeam || takenBySpectator || takenByHost) {
+                        return socket.emit('name_taken', {
+                            message: `"${playerName}" is already taken in this room. Please use a different name.`
+                        });
+                    }
                 }
 
                 socket.join(roomCode);
@@ -497,7 +579,8 @@ const setupSocketHandlers = (io) => {
                 // Acknowledge directly to the claiming user so they can stop their loading spinner
                 socket.emit('team_claimed_success');
 
-                // Update authoritative DB state asynchronously
+                // Update authoritative DB state asynchronously (batched)
+                markDirty(roomCode, {});
                 AuctionRoom.findOneAndUpdate({ roomId: roomCode }, { $push: { franchisesInRoom: newTeamObj } }).exec();
 
                 // If this is a public room, update the lobby count for onlookers
@@ -525,7 +608,8 @@ const setupSocketHandlers = (io) => {
             state.status = 'Auctioning';
             io.to(roomCode).emit('auction_started', { state });
 
-            AuctionRoom.findOneAndUpdate({ roomId: roomCode }, { status: 'Auctioning' }).exec();
+            // Mark status as dirty — will flush in next 30s window
+            markDirty(roomCode, { status: 'Auctioning' });
 
             // Room has started, remove it from the public lobbies list
             if (state.roomType === 'public') {
@@ -546,19 +630,21 @@ const setupSocketHandlers = (io) => {
             if (!team) return socket.emit('error', 'You are not assigned to a franchise');
             if (state.currentBid.teamId === team.franchiseId) return socket.emit('error', 'You already hold the highest bid');
 
-            // Determine Increment based on pool and current amount
+            // Determine Increment based on pool and current bid amount
             const currentPlayer = state.players[state.currentIndex];
-            let minIncrement = 25; // Default 25 Lakhs for most pools
+            const poolID = currentPlayer.poolID || '';
+            const curAmt = state.currentBid.amount;
+            let minIncrement;
 
-            // Use poolID for robust logic matching
-            if (currentPlayer.poolID === 'pool4') {
-                if (state.currentBid.amount < 100) {
-                    minIncrement = 5; // 5 Lakhs up to 1 Cr
-                } else if (state.currentBid.amount < 200) {
-                    minIncrement = 10; // 10 Lakhs up to 2 Cr
-                } else {
-                    minIncrement = 25; // 25 Lakhs after 2 Cr
-                }
+            const lowerPool = poolID.toLowerCase();
+            if (lowerPool.startsWith('marquee') || lowerPool.includes('pool1') || lowerPool.includes('pool2')) {
+                // Marquee, Pool 1, Pool 2: flat 25L increment
+                minIncrement = 25;
+            } else if (lowerPool.includes('emerging') || lowerPool.includes('pool3') || lowerPool.includes('pool4')) {
+                // Emerging, Pool 3, Pool 4: 5L up to 2Cr, then 25L
+                minIncrement = curAmt < 200 ? 5 : 25;
+            } else {
+                minIncrement = 25; // safe fallback
             }
 
             const requiredBid = state.currentBid.amount === 0 ? currentPlayer.basePrice : state.currentBid.amount + minIncrement;
@@ -572,14 +658,28 @@ const setupSocketHandlers = (io) => {
                 return socket.emit('error', 'Overseas player limit (8) reached for your team');
             }
 
-            // Accept bid
+            // Accept bid — update memory only, no DB write per bid
             state.currentBid = { amount, teamId: team.franchiseId, teamName: team.teamName, teamColor: team.teamThemeColor, teamLogo: team.teamLogo, ownerName: team.ownerName };
             state.timerEndsAt = Date.now() + (state.timerDuration * 1000);
             state.timer = state.timerDuration; // Reset timer
 
-            io.to(roomCode).emit('bid_placed', {
-                currentBid: state.currentBid,
-                timer: state.timer
+            // Batch the bid state update — flushes every 30s (NOT per bid)
+            markDirty(roomCode, {
+                currentBidAmount: amount,
+                highestBidderTeamId: team.franchiseId
+            });
+
+            // Shortened keys for high-frequency bid updates
+            io.to(roomCode).emit('bp', {
+                cb: {
+                    a: amount,
+                    tid: team.franchiseId,
+                    tn: team.teamName,
+                    tc: team.teamThemeColor,
+                    tl: team.teamLogo,
+                    on: team.ownerName
+                },
+                t: state.timer
             });
         });
 
@@ -649,7 +749,8 @@ const setupSocketHandlers = (io) => {
 
         socket.on('approve_participation', ({ roomCode, targetUserId, targetSocketId }) => {
             const state = roomStates[roomCode];
-            if (!state || (state.hostUserId !== socket.userId && state.host !== socket.id)) return;
+            const mod = isModerator(state, socket.id, socket.userId);
+            if (!state || !mod) return;
 
             if (!state.joinRequests) state.joinRequests = [];
 
@@ -677,7 +778,8 @@ const setupSocketHandlers = (io) => {
 
         socket.on('reject_participation', ({ roomCode, targetUserId, targetSocketId }) => {
             const state = roomStates[roomCode];
-            if (!state || (state.hostUserId !== socket.userId && state.host !== socket.id)) return;
+            const mod = isModerator(state, socket.id, socket.userId);
+            if (!state || !mod) return;
 
             if (!state.joinRequests) state.joinRequests = [];
             const requestIndex = state.joinRequests.findIndex(r =>
@@ -701,14 +803,19 @@ const setupSocketHandlers = (io) => {
             const userId = socket.userId;
 
             // If the Host leaves during the Lobby phase, disband the room
-            const isHost = (userId && state.hostUserId === userId) || state.host === socket.id;
-            if (isHost && state.status === 'Lobby') {
+            const mod = isModerator(state, socket.id, socket.userId);
+            if (mod && state.status === 'Lobby') {
                 delete roomStates[roomCode];
                 io.to(roomCode).emit('room_disbanded');
                 io.in(roomCode).socketsLeave(roomCode);
                 AuctionRoom.findOneAndDelete({ roomId: roomCode }).exec();
                 broadcastPublicRooms();
                 return;
+            }
+
+            // If the Host leaves during an active Auction, promote a new host
+            if (mod && state.status !== 'Lobby') {
+                promoteNewHost(roomCode, io);
             }
 
             // Normal player leaving - find by userId first
@@ -753,8 +860,9 @@ const setupSocketHandlers = (io) => {
         // Kick Player
         socket.on('kick_player', async ({ roomCode, targetSocketId, targetUserId }) => {
             const state = roomStates[roomCode];
-            if (!state || (socket.userId && state.hostUserId !== socket.userId) || (!socket.userId && state.host !== socket.id)) {
-                return socket.emit('error', 'Unauthorized: Only the host can kick players.');
+            const mod = isModerator(state, socket.id, socket.userId);
+            if (!state || !mod) {
+                return socket.emit('error', 'Unauthorized: Only the host/co-host can kick players.');
             }
 
             // Prevent host from kicking themselves
@@ -813,7 +921,8 @@ const setupSocketHandlers = (io) => {
         // Pause / Resume
         socket.on('pause_auction', ({ roomCode }) => {
             const state = roomStates[roomCode];
-            if (!state || (socket.userId && state.hostUserId !== socket.userId) || (!socket.userId && state.host !== socket.id)) return socket.emit('error', 'Unauthorized: Only the host can pause the auction.');
+            const mod = isModerator(state, socket.id, socket.userId);
+            if (!state || !mod) return socket.emit('error', 'Unauthorized: Only moderators can pause the auction.');
             state.status = 'Paused';
             // Stop the interval timer temporarily
             if (roomTimers[roomCode]) clearInterval(roomTimers[roomCode]);
@@ -822,7 +931,8 @@ const setupSocketHandlers = (io) => {
 
         socket.on('resume_auction', ({ roomCode }) => {
             const state = roomStates[roomCode];
-            if (!state || (socket.userId && state.hostUserId !== socket.userId) || (!socket.userId && state.host !== socket.id) || state.status !== 'Paused') return socket.emit('error', 'Unauthorized: Only the host can resume the auction.');
+            const mod = isModerator(state, socket.id, socket.userId);
+            if (!state || !mod || state.status !== 'Paused') return socket.emit('error', 'Unauthorized: Only moderators can resume the auction.');
 
             if (state.votingSession && state.votingSession.active) {
                 return socket.emit('error', 'Cannot resume auction while voting is in progress.');
@@ -848,16 +958,18 @@ const setupSocketHandlers = (io) => {
         // Force End Auction Early
         socket.on('force_end_auction', ({ roomCode }) => {
             const state = roomStates[roomCode];
-            if (!state || (state.hostUserId !== socket.userId && state.host !== socket.id)) return;
+            const mod = isModerator(state, socket.id, socket.userId);
+            if (!state || !mod) return;
             endAuction(roomCode, io);
         });
 
         // Update Room Settings (Host Only)
         socket.on('update_settings', ({ roomCode, timerDuration }) => {
             const state = roomStates[roomCode];
-            if (!state || (state.hostUserId !== socket.userId && state.host !== socket.id)) return;
+            const mod = isModerator(state, socket.id, socket.userId);
+            if (!state || !mod) return;
 
-            if ([5, 10, 15, 20].includes(timerDuration)) {
+            if ([3, 5, 7, 10].includes(timerDuration)) {
                 state.timerDuration = timerDuration;
                 io.to(roomCode).emit('settings_updated', { timerDuration: state.timerDuration });
                 console.log(`Room ${roomCode} settings updated: timerDuration = ${timerDuration}s`);
@@ -1114,14 +1226,135 @@ const setupSocketHandlers = (io) => {
                                 if (s.userId) onlineMap[s.userId] = (s.userId !== userId);
                             });
                             io.to(roomCode).emit('player_status_update', { onlineMap });
+
+                            // HOST MIGRATION: If host disconnects for > 30s during meat of auction, promote someone else
+                            if (currentState.hostUserId === userId && currentState.status !== 'Lobby' && currentState.status !== 'Finished') {
+                                console.log(`[HOST] Original host ${userId} offline (disconnect). Starting promotion timeout...`);
+                                // Clear existing timeout if any
+                                if (currentState.hostPromotionTimeout) clearTimeout(currentState.hostPromotionTimeout);
+                                currentState.hostPromotionTimeout = setTimeout(() => {
+                                    const finalCheck = roomStates[roomCode];
+                                    if (finalCheck && (finalCheck.hostUserId === userId || !io.sockets.sockets.has(finalCheck.host))) {
+                                        promoteNewHost(roomCode, io);
+                                    }
+                                }, 30000);
+                            }
                         }
                     }, 2000);
                 }
             }
         });
 
+        // Add explicit claim_host feature
+        socket.on('claim_host', ({ roomCode }) => {
+            const state = roomStates[roomCode];
+            if (!state) return;
+
+            // Only allow if the current host is actually offline
+            const hostIsOnline = state.host && io.sockets.sockets.has(state.host);
+            if (!hostIsOnline) {
+                console.log(`[HOST] Explicit claim by ${socket.id} for room ${roomCode}`);
+                promoteNewHost(roomCode, io, socket.id);
+            } else {
+                socket.emit('error', 'The current host is still online and active.');
+            }
+        });
+
+        // Add toggle_cohost feature
+        socket.on('toggle_cohost', async ({ roomCode, userId: targetUserId }) => {
+            const state = roomStates[roomCode];
+            if (!state) return;
+
+            // ONLY the primary host can manage co-hosts
+            const isPrimary = (socket.userId && state.hostUserId === socket.userId) || state.host === socket.id;
+            if (!isPrimary) return socket.emit('error', 'Only the primary host can manage co-hosts.');
+
+            if (!state.coHostUserIds) state.coHostUserIds = [];
+
+            const index = state.coHostUserIds.indexOf(targetUserId);
+            if (index === -1) {
+                // Add Co-Host (Max 3)
+                if (state.coHostUserIds.length >= 3) {
+                    return socket.emit('error', 'Maximum 3 co-hosts allowed.');
+                }
+                state.coHostUserIds.push(targetUserId);
+                console.log(`[HOST] User ${targetUserId} added as Co-Host in room ${roomCode}`);
+            } else {
+                // Remove Co-Host
+                state.coHostUserIds.splice(index, 1);
+                console.log(`[HOST] User ${targetUserId} removed as Co-Host in room ${roomCode}`);
+            }
+
+            // Sync to DB
+            await AuctionRoom.findOneAndUpdate({ roomId: roomCode }, {
+                coHostUserIds: state.coHostUserIds
+            });
+
+            // Broadcast update to everyone
+            io.to(roomCode).emit('cohosts_updated', { coHostUserIds: state.coHostUserIds });
+        });
     });
 };
+
+function promoteNewHost(roomCode, io, specificSocketId = null) {
+    const state = roomStates[roomCode];
+    if (!state) return;
+
+    if (state.hostPromotionTimeout) {
+        clearTimeout(state.hostPromotionTimeout);
+        delete state.hostPromotionTimeout;
+    }
+
+    let nextHost = null;
+    if (specificSocketId && io.sockets.sockets.has(specificSocketId)) {
+        // Find user by socket ID
+        nextHost = [
+            ...state.teams.map(t => ({ socketId: t.ownerSocketId, userId: t.ownerUserId, name: t.ownerName })),
+            ...(state.spectators || []).map(s => ({ socketId: s.socketId, userId: s.userId, name: s.name }))
+        ].find(x => x.socketId === specificSocketId);
+    }
+
+    if (!nextHost) {
+        // Favor team owners first, then spectators
+        const potentialHosts = [
+            ...state.teams.map(t => ({ socketId: t.ownerSocketId, userId: t.ownerUserId, name: t.ownerName })),
+            ...(state.spectators || []).map(s => ({ socketId: s.socketId, userId: s.userId, name: s.name }))
+        ].filter(p => p.socketId && io.sockets.sockets.has(p.socketId));
+
+        if (potentialHosts.length > 0) {
+            nextHost = potentialHosts[0];
+        }
+    }
+
+    if (nextHost) {
+        state.host = nextHost.socketId;
+        state.hostUserId = nextHost.userId;
+        state.hostName = nextHost.name;
+
+        io.to(roomCode).emit('host_changed', {
+            newHost: { socketId: state.host, name: state.hostName, userId: state.hostUserId }
+        });
+
+        io.to(roomCode).emit('receive_chat_message', {
+            id: Date.now(),
+            senderName: 'System',
+            senderTeam: 'System',
+            senderColor: '#ef4444',
+            message: `Host migration event: ${state.hostName} is now the moderator.`,
+            timestamp: new Date().toLocaleTimeString()
+        });
+
+        // Update DB
+        AuctionRoom.findOneAndUpdate({ roomId: roomCode }, {
+            hostSocketId: state.host,
+            hostUserId: state.hostUserId,
+            hostName: state.hostName
+        }).exec();
+        console.log(`[HOST] Migration successful for room ${roomCode}. New host: ${state.hostName}`);
+    } else {
+        console.log(`[HOST] Migration failed: No active participants to promote in room ${roomCode}`);
+    }
+}
 
 function loadNextPlayer(roomCode, io) {
     const state = roomStates[roomCode];
@@ -1131,6 +1364,36 @@ function loadNextPlayer(roomCode, io) {
         handleAuctionEndTransition(roomCode, io);
         return;
     }
+
+    // --- EXHAUSTION CHECK ---
+    // Auto-end if every team is either full (25 players) OR can't afford
+    // the cheapest remaining player's base price.
+    const remainingPlayers = state.players.slice(state.currentIndex);
+    const lowestBasePrice = remainingPlayers.reduce((min, p) => {
+        const bp = p.basePrice || 0;
+        return bp < min ? bp : min;
+    }, Infinity);
+
+    const allTeamsExhausted = state.teams.length > 0 && state.teams.every(t => {
+        const isFull = t.playersAcquired.length >= 25;
+        const cantAfford = t.currentPurse < lowestBasePrice;
+        return isFull || cantAfford;
+    });
+
+    if (allTeamsExhausted) {
+        console.log(`\n--- ALL TEAMS EXHAUSTED (budget/roster) in Room ${roomCode}. Lowest remaining base price: ₹${lowestBasePrice}L. Auto-ending auction. ---`);
+        io.to(roomCode).emit('receive_chat_message', {
+            id: Date.now(),
+            senderName: 'System',
+            senderTeam: 'System',
+            senderColor: '#ef4444',
+            message: `Auction auto-ended: All teams have either a full squad or insufficient budget to bid on any remaining player (lowest base price ₹${lowestBasePrice}L).`,
+            timestamp: new Date().toLocaleTimeString()
+        });
+        handleAuctionEndTransition(roomCode, io);
+        return;
+    }
+    // --- END EXHAUSTION CHECK ---
 
     const player = state.players[state.currentIndex];
     const nextPlayers = state.players.slice(state.currentIndex + 1);
@@ -1153,6 +1416,7 @@ function loadNextPlayer(roomCode, io) {
     }, 500);
 }
 
+
 function tickTimer(roomCode, io) {
     const state = roomStates[roomCode];
     if (!state || state.status !== 'Auctioning') {
@@ -1165,7 +1429,8 @@ function tickTimer(roomCode, io) {
     // Only emit if the integer second has changed to avoid spamming the client
     if (state.timer !== remainingSeconds) {
         state.timer = remainingSeconds;
-        io.to(roomCode).emit('timer_tick', { timer: state.timer });
+        // Shortened event name and key for high-frequency timer ticks
+        io.to(roomCode).emit('tt', { t: state.timer });
     }
 
     if (state.timer <= 0) {
@@ -1249,6 +1514,9 @@ async function processHammerDown(roomCode, io) {
                     bidAmount: state.currentBid.amount
                 }]
             });
+
+            // Flush any pending dirty writes first, then persist the sold event atomically
+            await flushRoom(roomCode);
 
             // Update Authoritative Room State
             await AuctionRoom.findOneAndUpdate({ roomId: roomCode }, {
@@ -1431,7 +1699,42 @@ function tickSelectionTimer(roomCode, io) {
             clearInterval(roomTimers[roomCode]);
             delete roomTimers[roomCode];
         }
-        finalizeResults(roomCode, io);
+
+        // AUTO-SELECTION FOR SLOW/OFFLINE USERS
+        // For every team that hasn't confirmed their squad yet, trigger auto-selection
+        const { selectPlaying11AndImpact } = require('../services/aiRating');
+
+        const autoSelectionPromises = state.teams.map(async (team, index) => {
+            if (!team.playing11 || team.playing11.length < 11 || !team.impactPlayers || team.impactPlayers.length < 4) {
+                console.log(`[SELECTION] Timer expired for ${team.teamName}. Auto-selecting squad...`);
+                try {
+                    // Populate rich data if missing (finding by ID)
+                    const playersWithData = await Promise.all(team.playersAcquired.map(async (p) => {
+                        const data = await findPlayerById(p.player);
+                        return { ...p, player: data };
+                    }));
+
+                    const selection = await selectPlaying11AndImpact(team.teamName, playersWithData);
+                    state.teams[index].playing11 = selection.playing11;
+                    state.teams[index].impactPlayers = selection.impactPlayers;
+
+                    // Trigger evaluation for this team
+                    const { triggerBackgroundEvaluation } = require('./auctionEngine'); // Self-reference is tricky, but it's in scope since triggerBackgroundEvaluation is global in this file
+                    // But triggerBackgroundEvaluation is defined below, should be accessible.
+                    triggerBackgroundEvaluation(roomCode, index, io);
+                } catch (err) {
+                    console.error(`[SELECTION] Auto-selection failed for ${team.teamName}:`, err);
+                    // Minimal fallback
+                    const ids = team.playersAcquired.map(p => String(p.player));
+                    state.teams[index].playing11 = ids.slice(0, 11);
+                    state.teams[index].impactPlayers = ids.slice(11, 15);
+                }
+            }
+        });
+
+        Promise.all(autoSelectionPromises).then(() => {
+            finalizeResults(roomCode, io);
+        });
     }
 }
 
