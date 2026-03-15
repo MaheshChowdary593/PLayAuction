@@ -68,29 +68,23 @@ const evaluateTeam = async (team) => {
     const prompt = `
 You are an IPL Historian, Auction Analyst, and T20 Strategy Expert.
 
-Your goal is to evaluate the drafted squad based on their HISTORICAL IPL IMPACT, peak performance level, and tactical squad construction.
+Evaluate the drafted squad based on their HISTORICAL IPL IMPACT, peak performance level, and tactical squad construction.
 
 IMPORTANT RULES
 
-1. Ignore the player's current age or fitness.
-Treat every player as their IPL PRIME version.
+1. Ignore current age or fitness. Treat every player as their IPL PRIME version.
 
-2. Focus strongly on:
+2. Focus on:
 - Historical match-winning ability
 - Consistency across IPL seasons
-- High pressure performances
+- Pressure performances
 - Powerplay / Middle / Death contributions
-- IPL legacy impact
+- IPL legacy
 
 3. Emerging Player Rule
-For players with little IPL history evaluate ONLY:
+For players with limited IPL history evaluate ONLY:
 - Strike Rate
 - Batting Average
-
-Interpretation:
-High SR = aggressive impact
-High Avg + decent SR = stable
-Low SR/Avg = risky pick
 
 4. Batting Evaluation
 Analyze:
@@ -99,22 +93,13 @@ Analyze:
 - Finishers
 - Left-right combinations
 - Powerplay scoring
-- Spin vs pace ability
-
-Highlight if:
-- Too many anchors
-- No finishers
-- Poor left-right balance
 
 5. Bowling Evaluation
 Analyze:
 - Pace vs spin balance
 - Left arm vs right arm bowlers
-- Wrist spin vs finger spin
 - Death bowlers
 - Powerplay wicket takers
-
-Highlight lack of variation.
 
 6. Role Balance
 Check if team has:
@@ -123,24 +108,15 @@ Check if team has:
 - Finisher
 - Wicketkeeper
 - 5 bowling options
-- Death bowling
 
 7. Like-for-like backups
-Check if bench has replacements for:
-- Openers
-- Finishers
-- Spinners
-- Death bowlers
+Check if bench provides replacements.
 
 8. Home ground suitability
-Analyze if squad suits IPL home conditions such as:
-- Spin friendly tracks
-- Flat batting tracks
-- Slow pitches
-- Swing conditions
+Analyze whether squad suits IPL home conditions.
 
 9. Auction Strategy Review
-If team overspent on same type of players or ignored roles, roast the strategy like a cricket analyst.
+If the team overspent on similar players or ignored key roles, roast the strategy like a cricket analyst.
 
 TEAM DETAILS
 
@@ -150,21 +126,21 @@ Budget Remaining: ₹${team.currentPurse || team.budgetRemaining}L
 PLAYING 11
 ${playing11.map(id => {
         const p = team.playersAcquired.find(pa => pa.id === id);
-        if (!p) return \`Unknown Player\`;
+        if (!p) return `Unknown Player`;
         const s = p.stats || {};
-        return \`\${p.name} (\${p.role}) | SR \${s.strikeRate} Avg \${s.average} Wkts \${s.wickets} Econ \${s.economy}\`;
-    }).join('\\n')}
+        return `${p.name} (${p.role}) | SR ${s.strikeRate} Avg ${s.average} Wkts ${s.wickets} Econ ${s.economy}`;
+    }).join('\n')}
 
 IMPACT PLAYERS
 ${impactPlayers.map(id => {
         const p = team.playersAcquired.find(pa => pa.id === id);
-        if (!p) return \`Unknown Player\`;
+        if (!p) return `Unknown Player`;
         const s = p.stats || {};
-        return \`\${p.name} (\${p.role}) | SR \${s.strikeRate} Econ \${s.economy}\`;
-    }).join('\\n')}
+        return `${p.name} (${p.role}) | SR ${s.strikeRate} Econ ${s.economy}`;
+    }).join('\n')}
 
 BENCH
-${bench.map(p => \`\${p.name} (\${p.role}) | SR \${p.stats?.strikeRate || 0} Econ \${p.stats?.economy || 0}\`).join('\\n')}
+${bench.map(p => `${p.name} (${p.role}) | SR ${p.stats?.strikeRate || 0} Econ ${p.stats?.economy || 0}`).join('\n')}
 
 Respond ONLY with JSON:
 
@@ -180,7 +156,7 @@ Respond ONLY with JSON:
   "impactPlayers": ["Name"],
   "tacticalVerdict": "Detailed analysis",
   "weakness": "Biggest structural weakness",
-  "benchAnalysis": "Bench and backups analysis",
+  "benchAnalysis": "Bench analysis",
   "historicalContext": "Comparison to famous IPL team"
 }
 
@@ -221,8 +197,8 @@ Select:
 
 Players:
 ${players.map(p =>
-        \`ID:${p.id} Name:${p.name} Role:${p.role} SR:${p.stats?.strikeRate} Econ:${p.stats?.economy}\`
-    ).join('\\n')}
+        `ID:${p.id} Name:${p.name} Role:${p.role} SR:${p.stats?.strikeRate} Econ:${p.stats?.economy}`
+    ).join('\n')}
 
 Return JSON:
 {
