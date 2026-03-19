@@ -12,7 +12,7 @@ const normalizePlayer = (p, collName) => {
     else if (lowerColl.includes('pool1')) bp = 150; // 1.5cr
     else if (lowerColl.includes('emerging')) bp = 30; // 30L
     else if (lowerColl.includes('pool2')) bp = 100; // 1cr
-    else if (lowerColl.includes('pool3')) bp = 75; // 75L
+    else if (lowerColl.includes('pool3')) bp = 50; // 50L
     else if (lowerColl.includes('pool4')) bp = 50; // 50L
 
     // ---- emerging_players has a unique field schema ----

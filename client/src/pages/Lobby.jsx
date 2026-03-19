@@ -7,21 +7,21 @@ import { FaWhatsapp } from "react-icons/fa";
 import { motion, AnimatePresence } from "framer-motion";
 
 const IPL_TEAMS = [
-  { id: 'MI', name: 'Mumbai Indians', color: '#004BA0', logoUrl: 'https://upload.wikimedia.org/wikipedia/en/thumb/c/cd/Mumbai_Indians_Logo.svg/1200px-Mumbai_Indians_Logo.svg.png' },
-  { id: 'CSK', name: 'Chennai Super Kings', color: '#FFFF3C', logoUrl: 'https://upload.wikimedia.org/wikipedia/en/thumb/2/2b/Chennai_Super_Kings_Logo.svg/1200px-Chennai_Super_Kings_Logo.svg.png' },
-  { id: 'RCB', name: 'Royal Challengers Bengaluru', color: '#EC1C24', logoUrl: 'https://upload.wikimedia.org/wikipedia/en/thumb/d/d4/Royal_Challengers_Bengaluru_Logo.svg/1200px-Royal_Challengers_Bengaluru_Logo.svg.png' },
-  { id: 'KKR', name: 'Kolkata Knight Riders', color: '#2E0854', logoUrl: 'https://upload.wikimedia.org/wikipedia/en/thumb/4/4c/Kolkata_Knight_Riders_Logo.svg/1200px-Kolkata_Knight_Riders_Logo.svg.png' },
-  { id: 'DC', name: 'Delhi Capitals', color: '#00008B', logoUrl: 'https://upload.wikimedia.org/wikipedia/en/thumb/2/2f/Delhi_Capitals.svg/1200px-Delhi_Capitals.svg.png' },
-  { id: 'PBKS', name: 'Punjab Kings', color: '#ED1B24', logoUrl: 'https://upload.wikimedia.org/wikipedia/en/thumb/d/d4/Punjab_Kings_Logo.svg/1200px-Punjab_Kings_Logo.svg.png' },
-  { id: 'RR', name: 'Rajasthan Royals', color: '#EA1A85', logoUrl: 'https://scores.iplt20.com/ipl/teamlogos/RR.png' },
-  { id: 'SRH', name: 'Sunrisers Hyderabad', color: '#FF822A', logoUrl: 'https://upload.wikimedia.org/wikipedia/en/thumb/1/1c/Sunrisers_Hyderabad_Logo.svg/1200px-Sunrisers_Hyderabad_Logo.svg.png' },
-  { id: 'LSG', name: 'Lucknow Super Giants', color: '#00D1FF', logoUrl: 'https://upload.wikimedia.org/wikipedia/en/thumb/a/a9/Lucknow_Super_Giants_IPL_Logo.svg/1200px-Lucknow_Super_Giants_IPL_Logo.svg.png' },
-  { id: 'GT', name: 'Gujarat Titans', color: '#1B2133', logoUrl: 'https://upload.wikimedia.org/wikipedia/en/thumb/0/09/Gujarat_Titans_Logo.svg/1200px-Gujarat_Titans_Logo.svg.png' },
-  { id: 'DCG', name: 'Deccan Chargers', color: '#D1E1EF', logoUrl: 'https://upload.wikimedia.org/wikipedia/en/thumb/a/a6/HyderabadDeccanChargers.png/500px-HyderabadDeccanChargers.png' },
-  { id: 'KTK', name: 'Kochi Tuskers Kerala', color: '#F15A24', logoUrl: 'https://upload.wikimedia.org/wikipedia/en/thumb/9/96/Kochi_Tuskers_Kerala_Logo.svg/1200px-Kochi_Tuskers_Kerala_Logo.svg.png' },
-  { id: 'PWI', name: 'Pune Warriors India', color: '#40E0D0', logoUrl: 'https://upload.wikimedia.org/wikipedia/en/thumb/4/4a/Pune_Warriors_India_IPL_Logo.png/500px-Pune_Warriors_India_IPL_Logo.png' },
-  { id: 'RPS', name: 'Rising Pune Supergiant', color: '#D11D70', logoUrl: 'https://upload.wikimedia.org/wikipedia/en/thumb/2/27/Rising_Pune_Supergiant.png/1200px-Rising_Pune_Supergiant.png' },
-  { id: 'GL', name: 'Gujarat Lions', color: '#E04F16', logoUrl: 'https://upload.wikimedia.org/wikipedia/en/thumb/c/c4/Gujarat_Lions.png/1200px-Gujarat_Lions.png' },
+  { id: 'MI', name: 'Mumbai Indians', color: '#004BA0', logoUrl: '/logos/MI.png' },
+  { id: 'CSK', name: 'Chennai Super Kings', color: '#FFFF3C', logoUrl: '/logos/CSK.png' },
+  { id: 'RCB', name: 'Royal Challengers Bengaluru', color: '#EC1C24', logoUrl: '/logos/RCB.png' },
+  { id: 'KKR', name: 'Kolkata Knight Riders', color: '#2E0854', logoUrl: '/logos/KKR.png' },
+  { id: 'DC', name: 'Delhi Capitals', color: '#00008B', logoUrl: '/logos/DC.png' },
+  { id: 'PBKS', name: 'Punjab Kings', color: '#ED1B24', logoUrl: '/logos/PBKS.png' },
+  { id: 'RR', name: 'Rajasthan Royals', color: '#EA1A85', logoUrl: '/logos/RR.png' },
+  { id: 'SRH', name: 'Sunrisers Hyderabad', color: '#FF822A', logoUrl: '/logos/SRH.png' },
+  { id: 'LSG', name: 'Lucknow Super Giants', color: '#00D1FF', logoUrl: '/logos/LSG.png' },
+  { id: 'GT', name: 'Gujarat Titans', color: '#1B2133', logoUrl: '/logos/GT.png' },
+  { id: 'DCG', name: 'Deccan Chargers', color: '#D1E1EF', logoUrl: '/logos/DCG.png' },
+  { id: 'KTK', name: 'Kochi Tuskers Kerala', color: '#F15A24', logoUrl: '/logos/KTK.png' },
+  { id: 'PWI', name: 'Pune Warriors India', color: '#40E0D0', logoUrl: '/logos/PWI.png' },
+  { id: 'RPS', name: 'Rising Pune Supergiant', color: '#D11D70', logoUrl: '/logos/RPS.png' },
+  { id: 'GL', name: 'Gujarat Lions', color: '#E04F16', logoUrl: '/logos/GL.png' },
 ];
 
 const Lobby = () => {

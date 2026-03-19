@@ -23,27 +23,26 @@ async function fetchAllPlayers() {
         }
 
         const collections = [
-            'marquee_batsmen',
+            'marquee_batters',
             'marquee_bowlers',
-            'marquee_Allrounder',
-            'marquee_wk',
-            'pool1_batsmen',
+            'marquee_allrounders',
+            'marquee_wicketkeepers',
+            'pool1_batters',
             'pool1_bowlers',
-            'pool1_Allrounder',
-            'pool1_wk',
+            'pool1_allrounders',
+            'pool1_wicketkeepers',
             'Emerging_players',
-            'pool2_batsmen',
+            'pool2_batters',
             'pool2_bowlers',
-            'pool2_allrounder',
-            'pool3_batsmen',
-            'pool4_batsmen',
-            'pool4_allrounder',
-            'pool4_wk'
+            'pool2_allrounders',
+            'pool2_wicketkeepers',
+            'pool3_batters',
+            'pool3_allrounders'
         ];
 
         let allPlayers = [];
         for (const collName of collections) {
-            const db = mongoose.connection.client.db('ipl_data');
+            const db = mongoose.connection.client.db('ipl');
             const docs = await db.collection(collName).find({}).toArray();
 
             const mapped = docs.map(doc => {
@@ -54,8 +53,7 @@ async function fetchAllPlayers() {
                 else if (lowerColl.includes('pool1')) basePrice = 150; // 1.5cr
                 else if (lowerColl.includes('emerging')) basePrice = 30; // 30L
                 else if (lowerColl.includes('pool2')) basePrice = 100; // 1cr
-                else if (lowerColl.includes('pool3')) basePrice = 75; // 75L
-                else if (lowerColl.includes('pool4')) basePrice = 50; // 50L
+                else if (lowerColl.includes('pool3')) basePrice = 50; // 50L
 
                 return {
                     _id: doc._id,

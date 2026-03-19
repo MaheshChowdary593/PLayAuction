@@ -13,15 +13,26 @@ const { normalizePlayer } = require('../utils/playerNormalizer');
 
 async function fetchAllPlayers() {
     const collections = [
-        'marquee_batsmen', 'marquee_bowlers', 'marquee_Allrounder', 'marquee_wk',
-        'pool1_batsmen', 'pool1_bowlers', 'pool1_Allrounder', 'pool1_wk',
-        'Emerging_players', 'pool2_batsmen', 'pool2_bowlers', 'pool2_allrounder',
-        'pool3_batsmen', 'pool4_batsmen', 'pool4_allrounder', 'pool4_wk'
+        'marquee_batters',
+        'marquee_bowlers',
+        'marquee_allrounders',
+        'marquee_wicketkeepers',
+        'pool1_batters',
+        'pool1_bowlers',
+        'pool1_allrounders',
+        'pool1_wicketkeepers',
+        'Emerging_players',
+        'pool2_batters',
+        'pool2_bowlers',
+        'pool2_allrounders',
+        'pool2_wicketkeepers',
+        'pool3_batters',
+        'pool3_allrounders'
     ];
 
     try {
         console.time("[DATA] Multi-fetch duration");
-        const db = mongoose.connection.client.db('ipl_data');
+        const db = mongoose.connection.client.db('ipl');
 
         const poolResults = await Promise.all(
             collections.map(async (collName) => {
@@ -52,12 +63,21 @@ async function fetchAllPlayers() {
  * pool3, and pool4 — NOT in a single Mongoose model collection.
  */
 const PLAYER_COLLECTIONS = [
-    'marquee_batsmen', 'marquee_bowlers', 'marquee_Allrounder', 'marquee_wk',
-    'pool1_batsmen', 'pool1_bowlers', 'pool1_Allrounder', 'pool1_wk',
+    'marquee_batters',
+    'marquee_bowlers',
+    'marquee_allrounders',
+    'marquee_wicketkeepers',
+    'pool1_batters',
+    'pool1_bowlers',
+    'pool1_allrounders',
+    'pool1_wicketkeepers',
     'Emerging_players',
-    'pool2_batsmen', 'pool2_bowlers', 'pool2_allrounder',
-    'pool3_batsmen',
-    'pool4_batsmen', 'pool4_allrounder', 'pool4_wk'
+    'pool2_batters',
+    'pool2_bowlers',
+    'pool2_allrounders',
+    'pool2_wicketkeepers',
+    'pool3_batters',
+    'pool3_allrounders'
 ];
 
 async function findPlayerById(playerId) {
@@ -67,8 +87,8 @@ async function findPlayerById(playerId) {
     try { oid = new ObjectId(String(playerId)); } catch { return null; }
 
     for (const collName of PLAYER_COLLECTIONS) {
-        // All new auction pools live in the 'ipl_data' database
-        const db = mongoose.connection.client.db('ipl_data');
+        // All new auction pools live in the 'ipl' database
+        const db = mongoose.connection.client.db('ipl');
         const doc = await db.collection(collName).findOne({ _id: oid });
         if (doc) return doc;
     }
@@ -78,22 +98,22 @@ async function findPlayerById(playerId) {
 
 
 const IPL_TEAMS = [
-    { id: 'MI', name: 'Mumbai Indians', color: '#004BA0', logoUrl: 'https://upload.wikimedia.org/wikipedia/en/thumb/c/cd/Mumbai_Indians_Logo.svg/1200px-Mumbai_Indians_Logo.svg.png' },
-    { id: 'CSK', name: 'Chennai Super Kings', color: '#FFFF3C', logoUrl: 'https://upload.wikimedia.org/wikipedia/en/thumb/2/2b/Chennai_Super_Kings_Logo.svg/1200px-Chennai_Super_Kings_Logo.svg.png' },
-    { id: 'RCB', name: 'Royal Challengers Bengaluru', color: '#EC1C24', logoUrl: 'https://upload.wikimedia.org/wikipedia/en/thumb/d/d4/Royal_Challengers_Bengaluru_Logo.svg/1200px-Royal_Challengers_Bengaluru_Logo.svg.png' },
-    { id: 'KKR', name: 'Kolkata Knight Riders', color: '#2E0854', logoUrl: 'https://upload.wikimedia.org/wikipedia/en/thumb/4/4c/Kolkata_Knight_Riders_Logo.svg/1200px-Kolkata_Knight_Riders_Logo.svg.png' },
-    { id: 'DC', name: 'Delhi Capitals', color: '#00008B', logoUrl: 'https://upload.wikimedia.org/wikipedia/en/thumb/2/2f/Delhi_Capitals.svg/1200px-Delhi_Capitals.svg.png' },
-    { id: 'PBKS', name: 'Punjab Kings', color: '#ED1B24', logoUrl: 'https://upload.wikimedia.org/wikipedia/en/thumb/d/d4/Punjab_Kings_Logo.svg/1200px-Punjab_Kings_Logo.svg.png' },
-    { id: 'RR', name: 'Rajasthan Royals', color: '#EA1A85', logoUrl: 'https://scores.iplt20.com/ipl/teamlogos/RR.png' },
-    { id: 'SRH', name: 'Sunrisers Hyderabad', color: '#FF822A', logoUrl: 'https://upload.wikimedia.org/wikipedia/en/thumb/1/1c/Sunrisers_Hyderabad_Logo.svg/1200px-Sunrisers_Hyderabad_Logo.svg.png' },
-    { id: 'LSG', name: 'Lucknow Super Giants', color: '#00D1FF', logoUrl: 'https://upload.wikimedia.org/wikipedia/en/thumb/a/a9/Lucknow_Super_Giants_IPL_Logo.svg/1200px-Lucknow_Super_Giants_IPL_Logo.svg.png' },
-    { id: 'GT', name: 'Gujarat Titans', color: '#1B2133', logoUrl: 'https://upload.wikimedia.org/wikipedia/en/thumb/0/09/Gujarat_Titans_Logo.svg/1200px-Gujarat_Titans_Logo.svg.png' },
-    { id: 'DCG', name: 'Deccan Chargers', color: '#D1E1EF', logoUrl: 'https://upload.wikimedia.org/wikipedia/en/thumb/a/a6/HyderabadDeccanChargers.png/500px-HyderabadDeccanChargers.png' },
-    { id: 'KTK', name: 'Kochi Tuskers Kerala', color: '#F15A24', logoUrl: 'https://upload.wikimedia.org/wikipedia/en/thumb/9/96/Kochi_Tuskers_Kerala_Logo.svg/1200px-Kochi_Tuskers_Kerala_Logo.svg.png' },
-    { id: 'PWI', name: 'Pune Warriors India', color: '#40E0D0', logoUrl: 'https://upload.wikimedia.org/wikipedia/en/thumb/4/4a/Pune_Warriors_India_IPL_Logo.png/500px-Pune_Warriors_India_IPL_Logo.png' },
-    { id: 'RPS', name: 'Rising Pune Supergiant', color: '#D11D70', logoUrl: 'https://upload.wikimedia.org/wikipedia/en/thumb/2/27/Rising_Pune_Supergiant.png/1200px-Rising_Pune_Supergiant.png' },
-    { id: 'GL', name: 'Gujarat Lions', color: '#E04F16', logoUrl: 'https://upload.wikimedia.org/wikipedia/en/thumb/c/c4/Gujarat_Lions.png/1200px-Gujarat_Lions.png' },
-]; // 15 teams
+    { id: 'MI', name: 'Mumbai Indians', color: '#004BA0', logoUrl: '/logos/MI.png' },
+    { id: 'CSK', name: 'Chennai Super Kings', color: '#FFFF3C', logoUrl: '/logos/CSK.png' },
+    { id: 'RCB', name: 'Royal Challengers Bengaluru', color: '#EC1C24', logoUrl: '/logos/RCB.png' },
+    { id: 'KKR', name: 'Kolkata Knight Riders', color: '#2E0854', logoUrl: '/logos/KKR.png' },
+    { id: 'DC', name: 'Delhi Capitals', color: '#00008B', logoUrl: '/logos/DC.png' },
+    { id: 'PBKS', name: 'Punjab Kings', color: '#ED1B24', logoUrl: '/logos/PBKS.png' },
+    { id: 'RR', name: 'Rajasthan Royals', color: '#EA1A85', logoUrl: '/logos/RR.png' },
+    { id: 'SRH', name: 'Sunrisers Hyderabad', color: '#FF822A', logoUrl: '/logos/SRH.png' },
+    { id: 'LSG', name: 'Lucknow Super Giants', color: '#00D1FF', logoUrl: '/logos/LSG.png' },
+    { id: 'GT', name: 'Gujarat Titans', color: '#1B2133', logoUrl: '/logos/GT.png' },
+    { id: 'DCG', name: 'Deccan Chargers', color: '#D1E1EF', logoUrl: '/logos/DCG.png' },
+    { id: 'KTK', name: 'Kochi Tuskers Kerala', color: '#F15A24', logoUrl: '/logos/KTK.png' },
+    { id: 'PWI', name: 'Pune Warriors India', color: '#40E0D0', logoUrl: '/logos/PWI.png' },
+    { id: 'RPS', name: 'Rising Pune Supergiant', color: '#D11D70', logoUrl: '/logos/RPS.png' },
+    { id: 'GL', name: 'Gujarat Lions', color: '#E04F16', logoUrl: '/logos/GL.png' },
+]; // 15 teams // 15 teams
 
 // In-memory state for timers to avoid DB writes for every second
 const roomTimers = {};
@@ -130,10 +150,26 @@ function lightweightTeams(teams = []) {
             return acc;
         }, { bat: 0, bowl: 0, ar: 0, wk: 0, fr: 0 });
 
+        // Explicitly pick fields to avoid circularity or excessive payload size
         return {
-            ...t,
+            franchiseId: t.franchiseId,
+            teamName: t.teamName,
+            teamThemeColor: t.teamThemeColor,
+            teamLogo: t.teamLogo,
+            ownerName: t.ownerName,
+            ownerUserId: t.ownerUserId,
+            ownerSocketId: t.ownerSocketId,
+            currentPurse: t.currentPurse,
+            isBot: !!t.isBot,
             acquiredCount: t.playersAcquired?.length || 0,
-            roleCounts: counts
+            roleCounts: counts,
+            // Only include minimal data for acquired players if needed, or omit if count/roles are enough
+            playersAcquired: (t.playersAcquired || []).map(p => ({
+                name: p.name,
+                role: p.role,
+                boughtFor: p.boughtFor,
+                isOverseas: p.isOverseas
+            }))
         };
     });
 }
@@ -208,6 +244,25 @@ function ensureArray(val) {
         return [val.trim()];
     }
     return [String(val)];
+}
+
+function getMinIncrement(poolID, currentAmount) {
+    const lowerPool = (poolID || '').toLowerCase();
+    const curAmt = currentAmount || 0;
+
+    if (lowerPool.startsWith('marquee') || lowerPool.includes('pool1')) {
+        // Marquee & Pool 1: flat 25L increment
+        return 25;
+    } else if (lowerPool.includes('emerging')) {
+        // Emerging: 5L (<2Cr), 10L (2-5Cr), 25L (>5Cr)
+        if (curAmt < 200) return 5;
+        if (curAmt < 500) return 10;
+        return 25;
+    } else if (lowerPool.includes('pool2') || lowerPool.includes('pool3') || lowerPool.includes('pool4')) {
+        // Pool 2, 3, 4: 10L (<5Cr), 25L (>5Cr)
+        return curAmt < 500 ? 10 : 25;
+    }
+    return 25; // fallback
 }
 
 async function handleAuctionEndTransition(roomCode, io) {
@@ -477,6 +532,30 @@ async function finalizeResults(roomCode, io) {
     if (state.status === 'Finished' || state.isFinalizing) return;
     state.isFinalizing = true;
 
+    // ── EVALUATION PHASE TIMER (240s) ──────────────────────────────────────
+    // Emit evaluation_started so the client swaps from "Selection Timer" to
+    // "Evaluation Timer" showing 240s counting down in the same spot.
+    const EVAL_DURATION = 240;
+    state.evaluationTimer = EVAL_DURATION;
+    state.evaluationTimerEndsAt = Date.now() + (EVAL_DURATION * 1000);
+
+    io.to(roomCode).emit('evaluation_started', { timer: EVAL_DURATION });
+    console.log(`[EVAL-TIMER] Evaluation phase started for room ${roomCode} (${EVAL_DURATION}s)`);
+
+    let evalDisplayTimer = EVAL_DURATION;
+    const evalTimerInterval = setInterval(() => {
+        const now = Date.now();
+        const remaining = Math.max(0, Math.ceil((state.evaluationTimerEndsAt - now) / 1000));
+        if (evalDisplayTimer !== remaining) {
+            evalDisplayTimer = remaining;
+            io.to(roomCode).emit('evaluation_timer_tick', { timer: remaining });
+        }
+        if (remaining <= 0) {
+            clearInterval(evalTimerInterval);
+        }
+    }, 500);
+    // ──────────────────────────────────────────────────────────────────────
+
     try {
         io.to(roomCode).emit('receive_chat_message', {
             id: Date.now(),
@@ -584,11 +663,14 @@ async function finalizeResults(roomCode, io) {
         io.to(roomCode).emit('error', 'Failed to generate final results');
     }
 
+    // Clean up both the selection timer and the evaluation countdown timer
+    clearInterval(evalTimerInterval);
     if (roomTimers[roomCode]) {
         clearInterval(roomTimers[roomCode]);
         delete roomTimers[roomCode];
     }
 }
+
 
 function processVotingResults(roomCode, io) {
     const state = roomStates[roomCode];
@@ -1087,18 +1169,7 @@ const setupSocketHandlers = (io) => {
             const currentPlayer = state.players[state.currentIndex];
             const poolID = currentPlayer.poolID || '';
             const curAmt = state.currentBid.amount;
-            let minIncrement;
-
-            const lowerPool = poolID.toLowerCase();
-            if (lowerPool.startsWith('marquee') || lowerPool.includes('pool1') || lowerPool.includes('pool2')) {
-                // Marquee, Pool 1, Pool 2: flat 25L increment
-                minIncrement = 25;
-            } else if (lowerPool.includes('emerging') || lowerPool.includes('pool3') || lowerPool.includes('pool4')) {
-                // Emerging, Pool 3, Pool 4: 5L up to 2Cr, then 25L
-                minIncrement = curAmt < 200 ? 5 : 25;
-            } else {
-                minIncrement = 25; // safe fallback
-            }
+            const minIncrement = getMinIncrement(poolID, curAmt);
 
             const requiredBid = state.currentBid.amount === 0 ? currentPlayer.basePrice : state.currentBid.amount + minIncrement;
 
@@ -2055,9 +2126,9 @@ function handleBotBidding(roomCode, io) {
         const squadSize = t.playersAcquired?.length || 0;
         const overseasCount = t.overseasCount || 0;
         
-        // [SAFETY] Round base price just in case data is non-standard
         const startPrice = Math.max(25, Math.floor((currentPlayer.basePrice || 0) / 25) * 25);
-        const nextBid = state.currentBid.amount === 0 ? startPrice : state.currentBid.amount + 25;
+        const minInc = getMinIncrement(currentPlayer.poolID, state.currentBid.amount);
+        const nextBid = state.currentBid.amount === 0 ? startPrice : state.currentBid.amount + minInc;
 
         return t.isBot && 
                t.currentPurse >= nextBid && 
@@ -2094,7 +2165,8 @@ function handleBotBidding(roomCode, io) {
         const valuation = getBotValuation(currentPlayer, bot, bot.playersAcquired?.length || 0);
         // [SAFETY] Round base price just in case data is non-standard
         const startPrice = Math.max(25, Math.floor((currentPlayer.basePrice || 0) / 25) * 25);
-        const nextBidAmount = currentAmt === 0 ? startPrice : currentAmt + 25;
+        const minInc = getMinIncrement(currentPlayer.poolID, currentAmt);
+        const nextBidAmount = currentAmt === 0 ? startPrice : currentAmt + minInc;
 
         if (nextBidAmount <= valuation && nextBidAmount <= bot.currentPurse) {
             // [LOG] Log competitive bidding
@@ -2304,7 +2376,19 @@ async function processHammerDown(roomCode, io, nextPlayerDelay = 3000) {
         console.log(JSON.stringify(soldData, null, 2));
 
         io.to(roomCode).emit('player_sold', {
-            player: { ...player, name: playerName },
+            player: {
+                _id: player._id,
+                playerId: player.playerId,
+                name: playerName,
+                role: player.role,
+                nationality: player.nationality,
+                isOverseas: player.isOverseas,
+                basePrice: player.basePrice,
+                photoUrl: player.photoUrl,
+                imagepath: player.imagepath,
+                image_path: player.image_path,
+                poolName: player.poolName
+            },
             winningBid: state.currentBid,
             teams: lightweightTeams(state.teams)
         });

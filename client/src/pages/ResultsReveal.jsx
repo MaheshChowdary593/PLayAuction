@@ -410,6 +410,13 @@ const ResultsReveal = () => {
                                         </div>
                                     </div>
 
+                                    {selectedTeam.evaluation?.homeGroundVerdict && (
+                                        <div className="bg-blue-600/10 border border-blue-500/20 p-4 rounded-2xl mb-4">
+                                            <div className="text-[9px] font-black text-blue-400 uppercase tracking-widest mb-1">🏟️ Home Ground Suitability</div>
+                                            <p className="text-blue-200 text-xs font-bold leading-relaxed">{selectedTeam.evaluation.homeGroundVerdict}</p>
+                                        </div>
+                                    )}
+
                                     <div className="bg-red-500/10 border border-red-500/20 p-4 rounded-2xl mb-8">
                                         <div className="text-[9px] font-black text-red-500 uppercase tracking-widest mb-1">Tactical Weakness</div>
                                         <p className="text-red-300 text-xs font-bold leading-relaxed">{selectedTeam.evaluation?.weakness}</p>
@@ -489,15 +496,44 @@ const ResultsReveal = () => {
                                                     const impact = lineupTab === 'home'
                                                         ? (selectedTeam.evaluation?.homeImpactPlayers || selectedTeam.evaluation?.impactPlayers || [])
                                                         : (selectedTeam.evaluation?.awayImpactPlayers || selectedTeam.evaluation?.impactPlayers || []);
-                                                    return impact.map((entry, idx) => {
+                                                    
+                                                    if (impact.length === 0) return <span className="text-slate-500 text-[10px] font-black uppercase">No Strategic Subs Defined</span>;
+
+                                                    const firstPlayer = impact[0];
+                                                    const otherPlayers = impact.slice(1);
+
+                                                    const renderPlayer = (entry, isFirst = false) => {
                                                         const isId = /^[0-9a-fA-F]{24}$/.test(entry);
                                                         const display = isId ? (squadMap[entry] || allPlayersMap[entry]?.name || allPlayersMap[entry]?.player || entry) : entry;
+
+                                                        if (isFirst) {
+                                                            return (
+                                                                <div key={`${entry}-0`} className="flex flex-col items-center mb-6 w-full">
+                                                                    <div className="bg-purple-600/30 text-purple-100 px-6 py-3 rounded-[24px] text-[11px] font-black border border-purple-400 shadow-[0_10px_30px_rgba(168,85,247,0.3)] uppercase tracking-widest scale-110 mb-2 transition-transform hover:scale-115">
+                                                                        ⭐ Special 12th Player: {display}
+                                                                    </div>
+                                                                    <div className="text-[8px] font-black text-purple-400 uppercase tracking-[0.3em] animate-pulse">Primary Tactical Sub / Impact Alpha</div>
+                                                                </div>
+                                                            );
+                                                        }
+
                                                         return (
-                                                            <span key={`${entry}-${idx}`} className="bg-purple-600/10 text-purple-200 px-3 py-1 rounded-full text-[9px] font-black border border-purple-500/10 uppercase tracking-widest">
+                                                            <span key={entry} className="bg-purple-600/10 text-purple-200 px-4 py-1.5 rounded-full text-[10px] font-black border border-purple-500/10 uppercase tracking-widest hover:bg-purple-600/20 transition-colors">
                                                                 {display}
                                                             </span>
                                                         );
-                                                    });
+                                                    };
+
+                                                    return (
+                                                        <div className="w-full flex flex-col items-center">
+                                                            {renderPlayer(firstPlayer, true)}
+                                                            {otherPlayers.length > 0 && (
+                                                                <div className="flex flex-wrap justify-center gap-3 mt-2">
+                                                                    {otherPlayers.map(p => renderPlayer(p, false))}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    );
                                                 })()}
                                                 </div>
                                             </div>
@@ -542,7 +578,8 @@ const ResultsReveal = () => {
                         initial={{ opacity: 0, y: -20, scale: 0.95 }}
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: -20, scale: 0.95 }}
-                        className="fixed top-4 left-1/2 -translate-x-1/2 z-[300] w-[calc(100%-2rem)] max-w-sm"
+                        onClick={() => setToast(null)}
+                        className="fixed top-4 left-1/2 -translate-x-1/2 z-[300] w-[calc(100%-2rem)] max-w-sm cursor-pointer"
                     >
                         <div
                             className={`flex items-center gap-2 sm:gap-3 p-2.5 sm:p-4 rounded-xl sm:rounded-2xl border shadow-2xl backdrop-blur-xl ${
@@ -583,8 +620,8 @@ const ResultsReveal = () => {
 
                             {/* Large Hit Area Close Button */}
                             <button
-                                onClick={() => setToast(null)}
-                                className="shrink-0 -mr-1 p-3 active:scale-95 transition-all text-white/40 hover:text-white"
+                                onClick={(e) => { e.stopPropagation(); setToast(null); }}
+                                className="shrink-0 -mr-1 min-w-[44px] min-h-[44px] flex items-center justify-center active:scale-95 transition-all text-white/60"
                                 aria-label="Close notification"
                             >
                                 <X className="w-5 h-5" />

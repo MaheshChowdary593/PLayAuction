@@ -31,6 +31,8 @@ const SquadSelection = () => {
     const impactOverseas = impactSubs.filter(p => p.isOverseas).length;
     const hasWK = xiPlayers.some(p => getRoleType(p.role) === 'wk');
     const [timer, setTimer] = useState(120);
+    const [evaluationTimer, setEvaluationTimer] = useState(0);
+    const [isEvaluating, setIsEvaluating] = useState(false);
     const [isAutoSelecting, setIsAutoSelecting] = useState(false);
     const [isConfirmed, setIsConfirmed] = useState(false);
     const [roomState, setRoomState] = useState(null);
@@ -99,6 +101,16 @@ const SquadSelection = () => {
             setIsAutoSelecting(false);
         });
 
+        // Evaluation phase: fires when all squads are done and AI evaluation starts
+        socket.on('evaluation_started', ({ timer }) => {
+            setIsEvaluating(true);
+            setEvaluationTimer(timer);
+        });
+
+        socket.on('evaluation_timer_tick', ({ timer }) => {
+            setEvaluationTimer(timer);
+        });
+
         socket.on('results_ready', () => navigate(`/results/${roomCode}`));
 
         socket.on('error', (msg) => {
@@ -110,6 +122,8 @@ const SquadSelection = () => {
             socket.off('room_joined');
             socket.off('selection_timer_tick');
             socket.off('selection_confirmed');
+            socket.off('evaluation_started');
+            socket.off('evaluation_timer_tick');
             socket.off('results_ready');
             socket.off('error');
         };
@@ -208,8 +222,12 @@ const SquadSelection = () => {
                         </h2>
                     </div>
                     <div className="w-full sm:w-auto flex flex-col items-center sm:items-end bg-white/5 sm:bg-transparent p-4 sm:p-0 rounded-2xl border border-white/5 sm:border-none">
-                        <div className="text-3xl md:text-5xl font-black font-mono text-yellow-500 mb-1">{formatTime(timer)}</div>
-                        <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Election Deadline</div>
+                        <div className={`text-3xl md:text-5xl font-black font-mono mb-1 ${isEvaluating ? 'text-purple-400' : 'text-yellow-500'}`}>
+                            {formatTime(isEvaluating ? evaluationTimer : timer)}
+                        </div>
+                        <div className={`text-[10px] font-black uppercase tracking-widest ${isEvaluating ? 'text-purple-400' : 'text-slate-500'}`}>
+                            {isEvaluating ? '🤖 Evaluation Timer' : 'Selection Timer'}
+                        </div>
                     </div>
                 </header>
 

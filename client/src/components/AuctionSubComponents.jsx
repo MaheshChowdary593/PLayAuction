@@ -289,6 +289,291 @@ export const BidHistory = memo(({ bidHistory }) => (
   </div>
 ));
 
+const ChatMessage = memo(({ msg, isMe }) => {
+  const isSold = msg.type === 'sold';
+
+  // --- Standard Chat Message ---
+  if (!msg.type || msg.type === 'chat') {
+    return (
+      <div className={`flex flex-col ${isMe ? "items-end" : "items-start"} gap-1.5 w-full`}>
+        <div className="flex items-center gap-2 mb-0.5 px-2">
+          {!isMe && msg.senderLogo && (
+            <img src={msg.senderLogo} alt="" className="w-3.5 h-3.5 object-contain" />
+          )}
+          <span className="text-[9px] font-black uppercase tracking-wider" style={{ color: msg.senderColor || "#D4AF37" }}>
+            {msg.senderName}
+            {msg.senderTeam && <span className="text-[#D4AF37]/40 ml-1.5 font-bold">[{msg.senderTeam}]</span>}
+          </span>
+          <span className="text-[8px] text-[#D4AF37]/30 font-bold">{msg.timestamp}</span>
+        </div>
+        <div
+          className={`max-w-[88%] px-4 py-2.5 rounded-2xl text-[11px] font-medium leading-relaxed shadow-lg
+                ${isMe
+              ? "bg-gradient-to-br from-[#FFE58F] to-[#D4AF37] text-[#1a1205] rounded-tr-sm shadow-[0_5px_15px_rgba(212,175,55,0.2)]"
+              : "bg-[#1a1205]/60 text-[#FFE58F]/90 rounded-tl-sm border border-[#D4AF37]/20 backdrop-blur-md"}
+          `}
+        >
+          {msg.message}
+        </div>
+      </div>
+    );
+  }
+
+  // --- BIDDING WAR Alert ---
+  if (msg.type === 'bidding_war') {
+    const poolLabel =
+      (msg.poolID || '').toLowerCase().startsWith('marquee') ? 'Marquee' :
+      (msg.poolID || '').toLowerCase().includes('pool1') ? 'Pool 1' : 'Emerging';
+    return (
+      <div className="w-full py-1.5 px-2">
+        <div className="relative bg-[#1a0d00]/80 backdrop-blur-md border border-orange-500/50 rounded-xl p-3 shadow-[0_0_30px_rgba(249,115,22,0.3)] overflow-hidden">
+          {/* Animated amber glow pulse */}
+          <div className="absolute inset-0 rounded-xl bg-orange-500/5 animate-pulse pointer-events-none" />
+
+          {/* Top banner */}
+          <div className="flex items-center gap-2 mb-2.5">
+            <span className="text-[9px] font-black uppercase tracking-[0.3em] text-orange-400 animate-pulse">
+              🔥 BIDDING WAR ALERT 🔥
+            </span>
+            <div className="ml-auto text-[8px] font-bold text-orange-400/40">{msg.timestamp}</div>
+          </div>
+
+          {/* Player row */}
+          <div className="flex items-center gap-3 relative z-10">
+            {/* Player image */}
+            {msg.playerImage ? (
+              <div className="w-11 h-11 rounded-full overflow-hidden border-2 border-orange-500/60 shadow-[0_0_14px_rgba(249,115,22,0.5)] shrink-0 bg-black/40">
+                <img src={msg.playerImage} alt="" className="w-full h-full object-cover" />
+              </div>
+            ) : (
+              <div className="w-11 h-11 rounded-full border-2 border-orange-500/50 bg-orange-900/30 flex items-center justify-center shrink-0">
+                <span className="text-orange-400 text-xl">🔥</span>
+              </div>
+            )}
+
+            <div className="flex flex-col min-w-0 flex-1">
+              <span className="text-[14px] font-black text-white uppercase tracking-tight truncate leading-none">
+                {msg.playerName || 'Player'}
+              </span>
+              <span className="text-[9px] font-bold text-orange-400/70 uppercase tracking-widest mt-0.5">
+                {poolLabel} · Teams are fighting!
+              </span>
+            </div>
+
+
+          </div>
+
+          {/* Caption */}
+          <div className="mt-2.5 border-t border-orange-500/15 pt-2">
+            <span className="text-[8px] font-bold text-orange-400/50 italic">
+              ⚔️ The battle is heating up — who will win this one?
+            </span>
+          </div>
+
+          {/* Left accent */}
+          <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-orange-500/70 shadow-[0_0_8px_rgba(249,115,22,0.7)]" />
+        </div>
+      </div>
+    );
+  }
+
+  // --- SHOCKING UNSOLD (Marquee / Pool 1 only) ---
+
+  if (msg.type === 'shocking_unsold') {
+    return (
+      <div className="w-full py-1.5 px-2">
+        <div className="relative bg-[#1a0505]/80 backdrop-blur-md border border-red-500/40 rounded-xl p-3 shadow-[0_0_30px_rgba(239,68,68,0.25)] overflow-hidden group">
+          {/* Pulsing red ambient glow */}
+          <div className="absolute inset-0 rounded-xl bg-red-500/5 animate-pulse pointer-events-none" />
+
+          {/* Top warning strip */}
+          <div className="flex items-center gap-1.5 mb-2.5">
+            <span className="text-[9px] font-black uppercase tracking-[0.3em] text-red-400 animate-pulse">⚡ SHOCKING UNSOLD ⚡</span>
+          </div>
+
+          {/* Player info row */}
+          <div className="flex items-center gap-3 relative z-10">
+            {/* Player image */}
+            {msg.playerImage ? (
+              <div className="relative shrink-0">
+                <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-red-500/60 shadow-[0_0_15px_rgba(239,68,68,0.5)] bg-black/40">
+                  <img src={msg.playerImage} alt="" className="w-full h-full object-cover grayscale contrast-125" />
+                </div>
+                {/* Red X overlay */}
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <span className="text-[18px] font-black text-red-500 drop-shadow-lg opacity-80">✕</span>
+                </div>
+              </div>
+            ) : (
+              <div className="w-12 h-12 rounded-full border-2 border-red-500/60 bg-red-900/30 flex items-center justify-center shrink-0 shadow-[0_0_15px_rgba(239,68,68,0.4)]">
+                <span className="text-red-400 text-xl font-black">?</span>
+              </div>
+            )}
+
+            <div className="flex flex-col min-w-0">
+              <span className="text-[16px] font-black text-white uppercase tracking-tight truncate leading-none">
+                {msg.playerName || 'Unknown Player'}
+              </span>
+              <span className="text-[9px] font-black text-red-400/70 uppercase tracking-widest mt-0.5">
+                {msg.poolID?.toLowerCase().startsWith('marquee') ? 'Marquee' : 'Pool 1'} Player
+              </span>
+            </div>
+
+            {/* OOPS badge */}
+            <div className="ml-auto shrink-0 flex flex-col items-center">
+              <span className="text-[20px] leading-none font-black text-red-500 drop-shadow-[0_0_10px_rgba(239,68,68,0.8)] animate-pulse">OOPS!</span>
+              <span className="text-[7px] font-black uppercase tracking-[0.2em] text-red-400/60 mt-0.5">No takers</span>
+            </div>
+          </div>
+
+          {/* Bottom caption */}
+          <div className="mt-2.5 border-t border-red-500/15 pt-2 flex items-center justify-between">
+            <span className="text-[8px] font-bold text-red-400/50 italic">Nobody bought this star... 😱</span>
+            <span className="text-[8px] text-red-400/40 font-bold">{msg.timestamp}</span>
+          </div>
+
+          {/* Left accent */}
+          <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-red-500/60 shadow-[0_0_8px_rgba(239,68,68,0.6)]" />
+        </div>
+      </div>
+    );
+  }
+
+  // --- SOLD Event Styling (Polished Compact Card) ---
+
+  if (isSold) {
+    return (
+      <div className="w-full py-1.5 px-2">
+        <div className="bg-[#1a1c1a]/60 backdrop-blur-md border border-green-500/20 rounded-xl p-2.5 shadow-lg relative overflow-hidden group">
+          {/* Left accent border */}
+          <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-green-500/50 shadow-[0_0_8px_rgba(34,197,94,0.3)]" />
+          
+          <div className="flex flex-col gap-1.5 relative z-10">
+            {/* Top Line: Player & Team & Price */}
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2.5 min-w-0">
+                {/* Player Pic */}
+                {msg.playerImage && (
+                  <div className="w-8 h-8 rounded-full border border-white/10 overflow-hidden shrink-0 shadow-md bg-black/40">
+                    <img src={msg.playerImage} alt="" className="w-full h-full object-cover" />
+                  </div>
+                )}
+                
+                <div className="flex flex-col min-w-0">
+                  <span className="text-[12px] font-black text-white uppercase tracking-tight truncate">
+                    {msg.playerName || "Unknown Player"}
+                  </span>
+                  <div className="flex items-center gap-1 min-w-0">
+                    {msg.senderLogo && (
+                      <div className="w-3 h-3 shrink-0">
+                        <img src={msg.senderLogo} alt="" className="w-full h-full object-contain" />
+                      </div>
+                    )}
+                    <span className="text-[9px] font-bold uppercase tracking-wider truncate text-white/30">
+                      {msg.senderTeam || "System"}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Price Tag */}
+              <div className="bg-green-500/5 border border-green-500/10 px-2 py-1 rounded-lg shrink-0 text-right">
+                <div className="text-[7px] font-black text-green-500/40 uppercase tracking-widest leading-none mb-0.5">Final Bid</div>
+                <div className="text-[13px] font-black text-green-400 font-mono tracking-tighter leading-none">
+                  {msg.amount ? fmtCr(msg.amount) : "N/A"}
+                </div>
+              </div>
+            </div>
+
+            {/* Bottom Line: Congratulations & Verdict */}
+            <div className="flex items-center justify-between gap-2 pl-0.5">
+              <span className="text-[9px] font-black text-white/40 italic truncate max-w-[60%]">
+                {msg.congrats}
+              </span>
+              
+              {msg.verdict && (
+                <div className={`px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-widest border shadow-sm ${
+                  msg.verdict.includes('Steal') ? 'bg-blue-500/10 border-blue-500/20 text-blue-400/80' :
+                  msg.verdict.includes('Huge') ? 'bg-orange-500/10 border-orange-500/20 text-orange-400/80' :
+                  msg.verdict.includes('Future') ? 'bg-purple-500/10 border-purple-500/20 text-purple-400/80' :
+                  msg.verdict.includes('Good') ? 'bg-green-500/10 border-green-500/20 text-green-400/80' :
+                  'bg-white/5 border-white/10 text-white/30'
+                }`}>
+                  {msg.verdict}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+
+  // --- Bid / Unsold Event Styling ---
+  const isBid = msg.type === 'bid';
+  const isUnsold = msg.type === 'unsold';
+
+  return (
+    <div className="w-full py-1.5 px-2">
+      <div className="flex items-center gap-3 group">
+        {/* SVG Icon Area */}
+        <div className={`shrink-0 w-8 h-8 rounded-lg flex items-center justify-center border transition-all ${
+          isUnsold ? "bg-red-500/10 border-red-500/30 text-red-500" :
+          "bg-white/5 border-white/10 text-yellow-500/60"
+        }`}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className={isBid ? "animate-pulse" : ""}>
+             <path d="m14 13 5 5c.4.4.4 1 0 1.4l-1.6 1.6c-.4.4-1 .4-1.4 0l-5-5" />
+             <path d="m3 21 2-2" />
+             <path d="m11 10 5-5" />
+             <path d="m12 11-2-2" />
+             <path d="m8 11.4 6 6" />
+             <path d="m13.1 12.3 2 2" />
+             <path d="m14 11 2 2" />
+             <path d="M11 5 6.4 9.6A2 2 0 0 0 5 11v11" />
+          </svg>
+        </div>
+
+        {/* Logo (if applicable) */}
+        {msg.senderLogo && (
+          <div className="shrink-0 w-7 h-7 bg-white/5 rounded-md flex items-center justify-center p-1 border border-white/10 shadow-inner">
+             <img src={msg.senderLogo} alt="" className="w-full h-full object-contain" />
+          </div>
+        )}
+
+        <div className="flex-1 min-w-0">
+          <div className="flex flex-wrap items-baseline gap-x-1.5">
+            {msg.senderTeam && (
+               <span className="text-[10px] font-black uppercase tracking-wider" style={{ color: msg.senderColor }}>
+                 {msg.senderTeam.split(' ')[0]}
+               </span>
+            )}
+            <span className="text-[10px] font-bold text-white/40 uppercase tracking-widest leading-none">
+              {isBid ? "bid" : "went"}
+            </span>
+            {isBid ? (
+              <span className="text-[11px] font-black text-yellow-500 tracking-tight">
+                {fmtCr(msg.amount)}
+              </span>
+            ) : null}
+            <span className="text-[10px] font-bold text-white/40 uppercase tracking-widest leading-none">
+              {isBid ? "for" : ""}
+            </span>
+            <span className={`text-[11px] font-black tracking-tight text-white/80`}>
+               {msg.playerName || msg.message}
+            </span>
+            {isUnsold && (
+              <span className="text-[10px] font-black text-red-500 uppercase tracking-[0.2em] ml-1">
+                UNSOLD
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+});
+
 export const ChatSection = memo(
   ({
     chatMessages,
@@ -328,29 +613,7 @@ export const ChatSection = memo(
             const isMe =
               msg.senderName === (myTeam?.ownerName || "Host") &&
               msg.senderTeam === (myTeam?.teamName || "System");
-            return (
-              <div key={msg.id} className={`flex flex-col ${isMe ? "items-end" : "items-start"} gap-1.5`}>
-                <div className="flex items-center gap-2 mb-0.5 px-2">
-                  {!isMe && msg.senderLogo && (
-                    <img src={msg.senderLogo} alt="" className="w-3.5 h-3.5 object-contain" />
-                  )}
-                  <span className="text-[9px] font-black uppercase tracking-wider" style={{ color: msg.senderColor || "#D4AF37" }}>
-                    {msg.senderName}
-                    {msg.senderTeam && <span className="text-[#D4AF37]/40 ml-1.5 font-bold">[{msg.senderTeam}]</span>}
-                  </span>
-                  <span className="text-[8px] text-[#D4AF37]/30 font-bold">{msg.timestamp}</span>
-                </div>
-                <div
-                  className={`max-w-[88%] px-4 py-2.5 rounded-2xl text-[11px] font-medium leading-relaxed shadow-lg
-                        ${isMe
-                      ? "bg-gradient-to-br from-[#FFE58F] to-[#D4AF37] text-[#1a1205] rounded-tr-sm shadow-[0_5px_15px_rgba(212,175,55,0.2)]"
-                      : "bg-[#1a1205]/60 text-[#FFE58F]/90 rounded-tl-sm border border-[#D4AF37]/20 backdrop-blur-md"}
-                  `}
-                >
-                  {msg.message}
-                </div>
-              </div>
-            );
+            return <ChatMessage key={msg.id} msg={msg} isMe={isMe} />;
           })
         )}
         <div ref={chatEndRef} />

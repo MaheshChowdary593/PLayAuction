@@ -42,6 +42,7 @@ const AuctionPodium = () => {
     const { playerName, userId, isReady: isSessionReady } = useSession();
     const [currentPlayer, setCurrentPlayer] = useState(null);
     const currentPlayerRef = useRef(null); // Needed for safety-net sync timeouts
+    const bidWarSentRef = useRef(false); // Fires bidding_war chat alert only once per player
     const [currentBid, setCurrentBid] = useState({
         amount: 0,
         teamId: null,
@@ -285,6 +286,7 @@ const AuctionPodium = () => {
             });
             setSoldEvent(null);
             setBidHistory([]);
+            bidWarSentRef.current = false; // Reset war alert for the new player
             if (incomingSkipped) setSkippedHistory(incomingSkipped);
 
             if (nextPlayers) {
@@ -334,7 +336,37 @@ const AuctionPodium = () => {
                 ...mappedBid,
                 time: new Date().toLocaleTimeString()
             }, ...prev]);
+            
             playBidSound();
+
+            // Bidding War alert — fires only once when bid crosses pool threshold
+            if (!bidWarSentRef.current) {
+                const player = currentPlayerRef.current;
+                if (player) {
+                    const poolID = (player.poolID || '').toLowerCase();
+                    const amount = mappedBid.amount;
+                    let threshold = null;
+                    if (poolID.startsWith('marquee')) threshold = 1000;       // 10 Cr
+                    else if (poolID.includes('pool1'))  threshold = 800;        // 8 Cr
+                    else if (poolID.includes('emerging')) threshold = 400;      // 4 Cr
+
+                    if (threshold !== null && amount >= threshold) {
+                        bidWarSentRef.current = true;
+                        setChatMessages(prev => [
+                            ...prev.slice(-49),
+                            {
+                                id: `bidwar-${Date.now()}`,
+                                type: 'bidding_war',
+                                playerName: player.name || player.player,
+                                playerImage: player.imagepath || player.image_path || player.photoUrl,
+                                poolID: player.poolID,
+                                amount,
+                                timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                            }
+                        ]);
+                    }
+                }
+            }
         };
 
         const handlePlayerSold = ({ player, winningBid, teams }) => {
@@ -346,7 +378,54 @@ const AuctionPodium = () => {
                 teamLogo: winningBid.teamLogo,
                 teamColor: winningBid.teamColor,
                 price: winningBid.amount
-            }, ...prev].slice(0, 10));
+            }, ...prev].slice(0, 10));            // Logic for Verdict Message — pool-aware fixed price thresholds
+            const price = winningBid.amount; // in Lakhs (e.g. 500 = 5 Cr)
+            const poolID = (player.poolID || '').toLowerCase();
+            let verdict = "Good buy! ✅";
+
+            if (poolID.startsWith('marquee') || poolID.includes('pool1')) {
+                // Marquee & Pool 1: <5Cr steal | 5-10Cr good | 10Cr+ huge
+                if (price < 500) verdict = "Steal buy! 💎";
+                else if (price <= 1000) verdict = "Good buy! ✅";
+                else verdict = "Huge investment! 🔥";
+            } else if (poolID.includes('emerging')) {
+                // Emerging: <2Cr good investment | 2-5Cr future asset | 5Cr+ huge
+                if (price < 200) verdict = "Good investment! ✅";
+                else if (price <= 500) verdict = "Future asset! 🌟";
+                else verdict = "Huge investment! 🔥";
+            } else if (poolID.includes('pool2') || poolID.includes('pool3')) {
+                // Pool 2 & Pool 3: <4Cr good buy | 4Cr+ huge
+                if (price < 400) verdict = "Good buy! ✅";
+                else verdict = "Huge investment! 🔥";
+            } else {
+                // Fallback for any other pool
+                if (price < 400) verdict = "Good buy! ✅";
+                else verdict = "Huge investment! 🔥";
+            }
+
+            const winningTeam = teams.find(t => t.teamName === winningBid.teamName);
+            const teamShort = winningTeam?.shortName || winningBid.teamName;
+
+            // Integrate into Chat
+            setChatMessages(prev => [
+                ...prev.slice(-49),
+                {
+                    id: `sold-${Date.now()}`,
+                    type: 'sold',
+                    senderName: 'System',
+                    senderTeam: winningBid.teamName,
+                    senderColor: winningBid.teamColor,
+                    senderLogo: winningBid.teamLogo,
+                    message: `${teamShort} bought ${player.name} for ${fmtCr(winningBid.amount)}`,
+                    playerName: player.name,
+                    playerImage: player.imagepath || player.image_path || player.photoUrl,
+                    amount: winningBid.amount,
+                    basePrice: player.basePrice,
+                    verdict,
+                    congrats: `Congratulations ${teamShort}! 🎉`,
+                    timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                }
+            ]);
 
             const myUpdate = teams.find(t => t.ownerUserId === userId || t.ownerSocketId === socket.id);
             if (myUpdate) setMyTeam(myUpdate);
@@ -355,6 +434,24 @@ const AuctionPodium = () => {
         const handlePlayerUnsold = ({ player, unsoldHistory: updatedHistory }) => {
             setSoldEvent({ type: "UNSOLD", player });
             if (updatedHistory) setUnsoldHistory(updatedHistory);
+
+            // Shocking unsold card for high-value pools
+            const poolID = (player.poolID || '').toLowerCase();
+            const isHighValue = poolID.startsWith('marquee') || poolID.includes('pool1');
+            if (isHighValue) {
+                setChatMessages(prev => [
+                    ...prev.slice(-49),
+                    {
+                        id: `shocking-unsold-${Date.now()}`,
+                        type: 'shocking_unsold',
+                        playerName: player.name || player.player,
+                        playerImage: player.imagepath || player.image_path || player.photoUrl,
+                        poolID: player.poolID,
+                        basePrice: player.basePrice,
+                        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                    }
+                ]);
+            }
         };
 
         const handleAuctionFinished = ({ teams, status }) => {
@@ -1551,22 +1648,7 @@ const AuctionPodium = () => {
                 {/* Left ornate edge of sidebar */}
                 <div className="absolute left-0 top-0 bottom-0 w-[1px] bg-gradient-to-b from-transparent via-[#D4AF37]/30 to-transparent"></div>
 
-                {/* Auction History Panel */}
-                <div className="hidden lg:flex h-[35%] flex flex-col relative overflow-hidden border-b border-[#D4AF37]/10">
-                    <div className="px-5 py-4 flex items-center justify-between bg-black/40 border-b border-[#D4AF37]/10">
-                        <div className="text-[9px] font-sans font-black text-[#FFE58F] uppercase tracking-[0.25em] relative z-10">
-                            Auction History
-                        </div>
-                    </div>
-                    <div className="flex-1 overflow-hidden flex flex-col relative z-10">
-                        <BidHistory bidHistory={bidHistory} />
-                    </div>
-                </div>
-
-                {/* Horizontal Divider */}
-                <div className="hidden lg:block w-[80%] mx-auto h-[1px] bg-gradient-to-r from-transparent via-[#D4AF37]/10 to-transparent"></div>
-
-                {/* War Room Chat Panel */}
+                {/* War Room Chat Panel (Unified History) */}
                 <div className="flex-1 flex flex-col relative overflow-hidden">
                     <ChatSection
                         chatMessages={chatMessages}
@@ -1814,7 +1896,8 @@ const AuctionPodium = () => {
                         initial={{ opacity: 0, y: -20, scale: 0.95 }}
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: -20, scale: 0.95 }}
-                        className="fixed top-4 left-1/2 -translate-x-1/2 z-[300] w-[calc(100%-2rem)] max-w-sm"
+                        onClick={() => setToast(null)}
+                        className="fixed top-4 left-1/2 -translate-x-1/2 z-[300] w-[calc(100%-2rem)] max-w-sm cursor-pointer"
                     >
                         <div
                             className={`flex items-center gap-2 sm:gap-3 p-2.5 sm:p-4 rounded-xl sm:rounded-2xl border shadow-2xl backdrop-blur-xl ${
@@ -1857,8 +1940,8 @@ const AuctionPodium = () => {
 
                             {/* Large Hit Area Close Button */}
                             <button
-                                onClick={() => setToast(null)}
-                                className="shrink-0 -mr-1 p-3 active:scale-95 transition-all text-white/40 hover:text-white"
+                                onClick={(e) => { e.stopPropagation(); setToast(null); }}
+                                className="shrink-0 -mr-1 min-w-[44px] min-h-[44px] flex items-center justify-center active:scale-95 transition-all text-white/60"
                                 aria-label="Close notification"
                             >
                                 <X className="w-5 h-5" />

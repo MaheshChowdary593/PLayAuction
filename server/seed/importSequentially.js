@@ -45,18 +45,26 @@ const importSequentially = async () => {
         console.log('Connecting to Local MongoDB...');
         await mongoose.connect(LOCAL_URI, { dbName: 'ipl' });
 
-        // The model says the collection name is 'new_enhanced'
+
         await Player.deleteMany({});
         console.log('Cleared existing local Player data.');
 
         const collections = [
-            'marqueeset',
-            'pool1_batsmen',
+            'marquee_batters',
+            'marquee_bowlers',
+            'marquee_allrounders',
+            'marquee_wicketkeepers',
+            'pool1_batters',
             'pool1_bowlers',
-            'pool2_batsmen',
+            'pool1_allrounders',
+            'pool1_wicketkeepers',
+            'Emerging_players',
+            'pool2_batters',
             'pool2_bowlers',
-            'pool3',
-            'pool4'
+            'pool2_allrounders',
+            'pool2_wicketkeepers',
+            'pool3_batters',
+            'pool3_allrounders',
         ];
 
         let globalPlayerCount = 0;
@@ -72,13 +80,17 @@ const importSequentially = async () => {
 
                 // Pool-specific base prices
                 let basePrice = 50; // Default
-                if (['marqueeset', 'pool1_batsmen', 'pool1_bowlers'].includes(collName)) {
+                const lowColl = collName.toLowerCase();
+
+                if (lowColl.includes('marquee')) {
                     basePrice = 200; // 2 Cr
-                } else if (['pool2_batsmen', 'pool2_bowlers'].includes(collName)) {
+                } else if (lowColl.includes('pool1')) {
                     basePrice = 150; // 1.5 Cr
-                } else if (collName === 'pool3') {
+                } else if (lowColl.includes('emerging')) {
+                    basePrice = 30; // 30 Lc
+                } else if (lowColl.includes('pool2')) {
                     basePrice = 100; // 1 Cr
-                } else if (collName === 'pool4') {
+                } else if (lowColl.includes('pool3')) {
                     basePrice = 50; // 50 Lc
                 }
 
@@ -94,16 +106,16 @@ const importSequentially = async () => {
                     image_path: doc.image_path || doc.imagepath,
                     basePrice: basePrice,
                     stats: {
-                        matches: doc.matches || 0,
-                        runs: doc.runs || 0,
-                        wickets: doc.wickets || 0,
-                        battingAvg: doc.batting_avg || 0,
-                        bowlingAvg: doc.bowling_avg || 0,
-                        strikeRate: doc.batting_strike_rate || 0,
-                        economy: doc.bowling_economy || 0,
-                        stumpings: doc.stumpings || 0,
-                        catches: doc.catches || 0,
-                        iplSeasonsActive: Math.max(1, Math.floor((doc.matches || 0) / 14))
+                        matches: Number(doc.matches) || 0,
+                        runs: Number(doc.runs) || 0,
+                        wickets: Number(doc.wickets) || 0,
+                        battingAvg: Number(doc.batting_avg) || 0,
+                        bowlingAvg: Number(doc.bowling_avg) || 0,
+                        strikeRate: Number(doc.batting_strike_rate) || 0,
+                        economy: Number(doc.bowling_economy) || 0,
+                        stumpings: Number(doc.stumpings) || 0,
+                        catches: Number(doc.catches) || 0,
+                        iplSeasonsActive: Math.max(1, Math.floor((Number(doc.matches) || 0) / 14))
                     },
                     form: {
                         lastMatches: [getRandomItem(forms), getRandomItem(forms), getRandomItem(forms), getRandomItem(forms), getRandomItem(forms)],
@@ -134,8 +146,22 @@ const importSequentially = async () => {
             });
 
             if (finalPlayers.length > 0) {
-                await Player.insertMany(finalPlayers);
-                console.log(`Successfully imported ${finalPlayers.length} players from ${collName} in role-based order.`);
+                try {
+                    await Player.insertMany(finalPlayers);
+                    console.log(`Successfully imported ${finalPlayers.length} players from ${collName} in role-based order.`);
+                } catch (insertError) {
+                    if (insertError.name === 'ValidationError') {
+                        console.error(`Validation error in ${collName}:`);
+                        Object.keys(insertError.errors).forEach(key => {
+                            console.error(` - ${key}: ${insertError.errors[key].message}`);
+                        });
+                        // Log the first failed document
+                        console.error('Example failed document:', JSON.stringify(finalPlayers[0], null, 2));
+                    } else {
+                        console.error(`Error inserting into ${collName}:`, insertError.message);
+                    }
+                    throw insertError;
+                }
             }
         }
 
