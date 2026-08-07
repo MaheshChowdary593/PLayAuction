@@ -6,10 +6,10 @@
 const mongoose = require('mongoose');
 
 const COLLECTIONS = [
-    'marquee_batsmen', 'marquee_bowlers', 'marquee_Allrounder', 'marquee_wk',
-    'pool1_batsmen', 'pool1_bowlers', 'pool1_Allrounder', 'pool1_wk',
-    'Emerging_players', 'pool2_batsmen', 'pool2_bowlers', 'pool2_allrounder',
-    'pool3_batsmen', 'pool4_batsmen', 'pool4_allrounder', 'pool4_wk'
+    'marquee_batters', 'marquee_bowlers', 'marquee_allrounders', 'marquee_wicketkeepers',
+    'pool1_batters', 'pool1_bowlers', 'pool1_allrounders', 'pool1_wicketkeepers',
+    'Emerging_players', 'pool2_batters', 'pool2_bowlers', 'pool2_allrounders',
+    'pool2_wicketkeepers', 'pool3_batters', 'pool3_allrounders'
 ];
 
 const { normalizePlayer } = require('./playerNormalizer');
@@ -26,7 +26,7 @@ class PlayerCache {
         if (this.isLoaded) return;
 
         console.log('[PlayerCache] Pre-loading all player pools into memory...');
-        const db = mongoose.connection.client.db('ipl_data');
+        const db = mongoose.connection.client.db('ipl');
 
         const tasks = COLLECTIONS.map(async (collName) => {
             const rawPlayers = await db.collection(collName).find({}).toArray();

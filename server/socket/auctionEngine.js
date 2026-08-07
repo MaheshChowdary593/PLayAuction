@@ -13,15 +13,15 @@ const { normalizePlayer } = require('../utils/playerNormalizer');
 
 async function fetchAllPlayers() {
     const collections = [
-        'marquee_batsmen', 'marquee_bowlers', 'marquee_Allrounder', 'marquee_wk',
-        'pool1_batsmen', 'pool1_bowlers', 'pool1_Allrounder', 'pool1_wk',
-        'Emerging_players', 'pool2_batsmen', 'pool2_bowlers', 'pool2_allrounder',
-        'pool3_batsmen', 'pool4_batsmen', 'pool4_allrounder', 'pool4_wk'
+        'marquee_batters', 'marquee_bowlers', 'marquee_allrounders', 'marquee_wicketkeepers',
+        'pool1_batters', 'pool1_bowlers', 'pool1_allrounders', 'pool1_wicketkeepers',
+        'Emerging_players', 'pool2_batters', 'pool2_bowlers', 'pool2_allrounders',
+        'pool2_wicketkeepers', 'pool3_batters', 'pool3_allrounders'
     ];
 
     try {
         console.time("[DATA] Multi-fetch duration");
-        const db = mongoose.connection.client.db('ipl_data');
+        const db = mongoose.connection.client.db('ipl');
 
         const poolResults = await Promise.all(
             collections.map(async (collName) => {
@@ -52,12 +52,11 @@ async function fetchAllPlayers() {
  * pool3, and pool4 — NOT in a single Mongoose model collection.
  */
 const PLAYER_COLLECTIONS = [
-    'marquee_batsmen', 'marquee_bowlers', 'marquee_Allrounder', 'marquee_wk',
-    'pool1_batsmen', 'pool1_bowlers', 'pool1_Allrounder', 'pool1_wk',
+    'marquee_batters', 'marquee_bowlers', 'marquee_allrounders', 'marquee_wicketkeepers',
+    'pool1_batters', 'pool1_bowlers', 'pool1_allrounders', 'pool1_wicketkeepers',
     'Emerging_players',
-    'pool2_batsmen', 'pool2_bowlers', 'pool2_allrounder',
-    'pool3_batsmen',
-    'pool4_batsmen', 'pool4_allrounder', 'pool4_wk'
+    'pool2_batters', 'pool2_bowlers', 'pool2_allrounders',
+    'pool2_wicketkeepers', 'pool3_batters', 'pool3_allrounders'
 ];
 
 async function findPlayerById(playerId) {
@@ -67,8 +66,8 @@ async function findPlayerById(playerId) {
     try { oid = new ObjectId(String(playerId)); } catch { return null; }
 
     for (const collName of PLAYER_COLLECTIONS) {
-        // All new auction pools live in the 'ipl_data' database
-        const db = mongoose.connection.client.db('ipl_data');
+        // All new auction pools live in the 'ipl' database
+        const db = mongoose.connection.client.db('ipl');
         const doc = await db.collection(collName).findOne({ _id: oid });
         if (doc) return doc;
     }
